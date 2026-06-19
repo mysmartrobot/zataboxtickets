@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zatabox"
+version = "0.3.0"
+description = "Official Python SDK for the Zatabox Tickets REST API (white-label event ticketing)."
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+keywords = ["zatabox", "ticketing", "events", "white-label", "api"]
+authors = [{ name = "Zatabox", email = "developers@zatabox.com" }]
+dependencies = []  # standard library only
+
+[project.urls]
+Homepage = "https://zatabox.com"
+Documentation = "https://zatabox.com/docs"
+Repository = "https://github.com/mysmartrobot/zataboxtickets"
+Source = "https://github.com/mysmartrobot/zataboxtickets/tree/main/python"
+
+[tool.setuptools]
+packages = ["zatabox"]

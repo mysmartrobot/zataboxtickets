@@ -1,0 +1,22 @@
+{
+  "name": "zatabox/zatabox",
+  "description": "Official PHP SDK for the Zatabox Tickets REST API (white-label event ticketing).",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["zatabox", "ticketing", "events", "white-label", "api"],
+  "homepage": "https://github.com/mysmartrobot/zataboxtickets/tree/main/php",
+  "support": {
+    "source": "https://github.com/mysmartrobot/zataboxtickets",
+    "issues": "https://github.com/mysmartrobot/zataboxtickets/issues",
+    "docs": "https://zatabox.com/docs"
+  },
+  "require": {
+    "php": ">=7.0",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": { "Zatabox\\": "src/" },
+    "classmap": ["src/"]
+  }
+}

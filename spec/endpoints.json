@@ -1,0 +1,433 @@
+{
+  "$comment": "CANONICAL ENDPOINT MANIFEST single source of truth for every Zatabox SDK. Hand-derived from the Zatabox REST API route definitions (the public OpenAPI spec is intentionally partial; the live routes are authoritative). Each SDK's resource layer is GENERATED from this file by scripts/generate.mjs, so the five languages never drift. Path params are written as :name and become positional method arguments in declaration order. kind defaults to 'json'; 'binary' returns raw bytes (PDF/CSV/XML), 'sse' generates a *Url() helper for streaming, 'multipart' is hand-implemented in each core.",
+  "apiVersion": "1.0.0",
+  "basePath": "/api/v1",
+  "groups": [
+    {
+      "ns": "auth",
+      "title": "Auth",
+      "desc": "Registration, password + passwordless sign-in, token refresh, 2FA and verification.",
+      "endpoints": [
+        { "name": "register", "method": "POST", "path": "/api/v1/auth/register", "desc": "Register a new user with email + password." },
+        { "name": "login", "method": "POST", "path": "/api/v1/auth/login", "desc": "Sign in with email + password; returns the JWT pair (or a 2FA challenge)." },
+        { "name": "loginVerify2fa", "method": "POST", "path": "/api/v1/auth/2fa-verify", "desc": "Complete a login that returned a 2FA challenge." },
+        { "name": "refresh", "method": "POST", "path": "/api/v1/auth/refresh", "desc": "Exchange a refresh token for a fresh access/refresh pair." },
+        { "name": "logout", "method": "POST", "path": "/api/v1/auth/logout", "desc": "Revoke a refresh token." },
+        { "name": "forgotPassword", "method": "POST", "path": "/api/v1/auth/forgot-password", "desc": "Email a password-reset link." },
+        { "name": "resetPassword", "method": "POST", "path": "/api/v1/auth/reset-password", "desc": "Set a new password using a reset token." },
+        { "name": "requestToken", "method": "POST", "path": "/api/v1/auth/token/request", "desc": "Passwordless: email a 6-digit login code." },
+        { "name": "exchangeToken", "method": "POST", "path": "/api/v1/auth/token/exchange", "desc": "Passwordless: swap an emailed code for the JWT pair." },
+        { "name": "verifyOtp", "method": "POST", "path": "/api/v1/auth/verify-otp", "desc": "Verify a one-time passcode." },
+        { "name": "verifyEmail", "method": "POST", "path": "/api/v1/auth/verify-email", "desc": "Confirm an email address from a verification token." },
+        { "name": "verifyPhone", "method": "POST", "path": "/api/v1/auth/verify-phone", "desc": "Confirm a phone number from an SMS code." },
+        { "name": "loginOauth", "method": "POST", "path": "/api/v1/auth/login/oauth", "desc": "Sign in with a third-party OAuth identity token." },
+        { "name": "enable2fa", "method": "POST", "path": "/api/v1/auth/2fa/enable", "desc": "Begin enrolling TOTP two-factor auth." },
+        { "name": "verify2fa", "method": "POST", "path": "/api/v1/auth/2fa/verify", "desc": "Confirm a TOTP code to finish 2FA enrollment." }
+      ]
+    },
+    {
+      "ns": "users",
+      "title": "Users (Buyer)",
+      "desc": "The authenticated account: profile, wallet, tickets, orders, refunds, reports, messaging and notifications.",
+      "endpoints": [
+        { "name": "me", "method": "GET", "path": "/api/v1/users/me", "desc": "Current user profile." },
+        { "name": "updateMe", "method": "PUT", "path": "/api/v1/users/me", "desc": "Update the current user profile." },
+        { "name": "orders", "method": "GET", "path": "/api/v1/users/me/orders", "desc": "List the buyer's orders." },
+        { "name": "tickets", "method": "GET", "path": "/api/v1/users/me/tickets", "desc": "List the buyer's tickets across all organizers." },
+        { "name": "deleteAccount", "method": "DELETE", "path": "/api/v1/users/me", "desc": "Close the account." },
+        { "name": "changePassword", "method": "POST", "path": "/api/v1/users/me/password", "desc": "Change the account password." },
+        { "name": "activity", "method": "GET", "path": "/api/v1/users/me/activity", "desc": "Recent account activity." },
+        { "name": "loginInfo", "method": "GET", "path": "/api/v1/users/me/login-info", "desc": "Last-login metadata." },
+        { "name": "twofaStatus", "method": "GET", "path": "/api/v1/users/me/2fa/status", "desc": "Whether 2FA is enabled." },
+        { "name": "twofaSetup", "method": "POST", "path": "/api/v1/users/me/2fa/setup", "desc": "Start 2FA setup (returns the TOTP secret/QR)." },
+        { "name": "twofaEnable", "method": "POST", "path": "/api/v1/users/me/2fa/enable", "desc": "Enable 2FA after verifying a code." },
+        { "name": "twofaDisable", "method": "POST", "path": "/api/v1/users/me/2fa/disable", "desc": "Disable 2FA." },
+        { "name": "createRefund", "method": "POST", "path": "/api/v1/users/me/refunds", "desc": "Submit a refund request for a ticket." },
+        { "name": "refunds", "method": "GET", "path": "/api/v1/users/me/refunds", "desc": "List the buyer's refund requests." },
+        { "name": "withdrawRefund", "method": "POST", "path": "/api/v1/users/me/refunds/:id/withdraw", "desc": "Withdraw a pending refund request." },
+        { "name": "createReport", "method": "POST", "path": "/api/v1/users/me/reports", "desc": "File a report against an event or organizer." },
+        { "name": "reports", "method": "GET", "path": "/api/v1/users/me/reports", "desc": "List the buyer's filed reports." },
+        { "name": "messages", "method": "GET", "path": "/api/v1/users/me/messages", "desc": "Message threads with organizers." },
+        { "name": "messageThread", "method": "GET", "path": "/api/v1/users/me/messages/:threadId", "desc": "A single message thread." },
+        { "name": "sendTicketMessage", "method": "POST", "path": "/api/v1/users/me/tickets/:ticketId/message", "desc": "Message the organizer of a ticket." },
+        { "name": "notifications", "method": "GET", "path": "/api/v1/users/me/notifications", "desc": "In-app notifications." },
+        { "name": "notificationsUnreadCount", "method": "GET", "path": "/api/v1/users/me/notifications/unread-count", "desc": "Count of unread notifications." },
+        { "name": "markNotificationsRead", "method": "POST", "path": "/api/v1/users/me/notifications/read", "desc": "Mark notifications as read." },
+        { "name": "updateAvatar", "method": "PUT", "path": "/api/v1/users/me/avatar", "desc": "Update the account avatar." },
+        { "name": "updateNotificationSettings", "method": "PUT", "path": "/api/v1/users/me/notifications/settings", "desc": "Update notification preferences." }
+      ]
+    },
+    {
+      "ns": "savedSearches",
+      "title": "Saved searches",
+      "desc": "The buyer's saved discovery searches.",
+      "endpoints": [
+        { "name": "list", "method": "GET", "path": "/api/v1/users/me/saved-searches", "desc": "List saved searches." },
+        { "name": "create", "method": "POST", "path": "/api/v1/users/me/saved-searches", "desc": "Save a search." },
+        { "name": "delete", "method": "DELETE", "path": "/api/v1/users/me/saved-searches/:id", "desc": "Delete a saved search." }
+      ]
+    },
+    {
+      "ns": "dataExport",
+      "title": "Data export",
+      "desc": "GDPR-style export of the account's data.",
+      "endpoints": [
+        { "name": "get", "method": "GET", "path": "/api/v1/users/me/export", "desc": "Export all of the account's data." }
+      ]
+    },
+    {
+      "ns": "events",
+      "title": "Events (Public)",
+      "desc": "Public event discovery rails and per-event read panels.",
+      "endpoints": [
+        { "name": "list", "method": "GET", "path": "/api/v1/events", "desc": "List / search public events (cursor-paginated)." },
+        { "name": "trending", "method": "GET", "path": "/api/v1/events/trending", "desc": "Trending events." },
+        { "name": "categories", "method": "GET", "path": "/api/v1/events/categories", "desc": "Event categories with counts." },
+        { "name": "nearby", "method": "GET", "path": "/api/v1/events/nearby", "desc": "Events near a lat/lng or city." },
+        { "name": "newThisWeek", "method": "GET", "path": "/api/v1/events/new-this-week", "desc": "Recently published events." },
+        { "name": "endingSoon", "method": "GET", "path": "/api/v1/events/ending-soon", "desc": "Events with sales ending soon." },
+        { "name": "free", "method": "GET", "path": "/api/v1/events/free", "desc": "Free events." },
+        { "name": "recommended", "method": "GET", "path": "/api/v1/events/recommended", "desc": "Personalized recommendations." },
+        { "name": "schedule", "method": "GET", "path": "/api/v1/events/:id/schedule", "desc": "An event's session schedule." },
+        { "name": "organizer", "method": "GET", "path": "/api/v1/events/:id/organizer", "desc": "Public organizer profile for an event." },
+        { "name": "faq", "method": "GET", "path": "/api/v1/events/:id/faq", "desc": "An event's FAQ." },
+        { "name": "related", "method": "GET", "path": "/api/v1/events/:id/related", "desc": "Related events." },
+        { "name": "expressInterest", "method": "POST", "path": "/api/v1/events/:id/interest", "desc": "Register interest in an event." },
+        { "name": "issue", "method": "POST", "path": "/api/v1/events/:eventId/issue", "desc": "Externally issue a ticket for an event (integrator mode)." },
+        { "name": "get", "method": "GET", "path": "/api/v1/events/:slug", "desc": "Get a public event by slug." },
+        { "name": "tickets", "method": "GET", "path": "/api/v1/events/:id/tickets", "desc": "List an event's purchasable ticket types." }
+      ]
+    },
+    {
+      "ns": "tickets",
+      "title": "Tickets",
+      "desc": "Ticket QR/PDF, peer-to-peer transfers, promo validation and wallet passes.",
+      "endpoints": [
+        { "name": "validatePromo", "method": "POST", "path": "/api/v1/tickets/promo/validate", "desc": "Validate a promo code against a cart." },
+        { "name": "qr", "method": "GET", "path": "/api/v1/tickets/:id/qr", "desc": "Current rotating QR payload for a ticket (JSON)." },
+        { "name": "pdf", "method": "GET", "path": "/api/v1/tickets/:id/pdf", "kind": "binary", "desc": "Ticket PDF (application/pdf bytes)." },
+        { "name": "transfer", "method": "POST", "path": "/api/v1/tickets/:id/transfer", "desc": "Initiate a peer-to-peer transfer; the recipient gets a claim link." },
+        { "name": "revokeTransfer", "method": "POST", "path": "/api/v1/tickets/transfers/:transferId/revoke", "desc": "Revoke a still-pending transfer (initiator only)." },
+        { "name": "getTransfer", "method": "GET", "path": "/api/v1/tickets/transfers/claim/:token", "desc": "Inspect a pending transfer by claim token." },
+        { "name": "claimTransfer", "method": "POST", "path": "/api/v1/tickets/transfers/claim/:token", "desc": "Claim a transfer; rewrites the ticket holder to the recipient." },
+        { "name": "walletPass", "method": "GET", "path": "/api/v1/tickets/:id/wallet-pass", "desc": "Google/Apple wallet 'Save to Wallet' link (JSON)." },
+        { "name": "listByEvent", "method": "GET", "path": "/api/v1/tickets/:eventId", "desc": "List ticket types for an event (legacy /ticket-types mount)." }
+      ]
+    },
+    {
+      "ns": "orders",
+      "title": "Orders",
+      "desc": "Carted checkout: create, pay, cancel, invoice.",
+      "endpoints": [
+        { "name": "create", "method": "POST", "path": "/api/v1/orders", "desc": "Create an order (reserves inventory)." },
+        { "name": "get", "method": "GET", "path": "/api/v1/orders/:id", "desc": "Order detail." },
+        { "name": "cancel", "method": "POST", "path": "/api/v1/orders/:id/cancel", "desc": "Cancel an order and release its hold." },
+        { "name": "pay", "method": "POST", "path": "/api/v1/orders/:id/pay", "desc": "Initiate payment for an order (nowpayments | paystack | flutterwave)." },
+        { "name": "invoice", "method": "GET", "path": "/api/v1/orders/:id/invoice", "kind": "binary", "desc": "Order receipt PDF (application/pdf bytes)." }
+      ]
+    },
+    {
+      "ns": "payments",
+      "title": "Payments",
+      "desc": "Payment intent creation, verification, method discovery, and inbound provider webhooks.",
+      "endpoints": [
+        { "name": "verify", "method": "POST", "path": "/api/v1/payments/verify", "desc": "Confirm a charge with the provider and complete the order (idempotent)." },
+        { "name": "get", "method": "GET", "path": "/api/v1/payments/:orderId", "desc": "Payment status for an order." },
+        { "name": "initiate", "method": "POST", "path": "/api/v1/payments/initiate", "desc": "Create a payment intent." },
+        { "name": "methods", "method": "GET", "path": "/api/v1/payments/methods", "desc": "Available payment methods for a currency." },
+        { "name": "cryptoCurrencies", "method": "GET", "path": "/api/v1/payments/crypto/currencies", "desc": "Supported crypto currencies (NOWPayments)." },
+        { "name": "webhookNowpayments", "method": "POST", "path": "/api/v1/payments/webhook/nowpayments", "desc": "Inbound NOWPayments webhook (provider callback; not for client use)." },
+        { "name": "webhookPaystack", "method": "POST", "path": "/api/v1/payments/webhook/paystack", "desc": "Inbound Paystack webhook (provider callback; not for client use)." },
+        { "name": "webhookFlutterwave", "method": "POST", "path": "/api/v1/payments/webhook/flutterwave", "desc": "Inbound Flutterwave webhook (provider callback; not for client use)." }
+      ]
+    },
+    {
+      "ns": "checkin",
+      "title": "Check-in",
+      "desc": "Gate scanning, offline manifests, batch sync, live stats and CSV export.",
+      "endpoints": [
+        { "name": "scan", "method": "POST", "path": "/api/v1/checkin/scan", "desc": "Validate a QR / short-code ticket at a gate." },
+        { "name": "batch", "method": "POST", "path": "/api/v1/checkin/batch", "desc": "Flush a queue of scans captured offline." },
+        { "name": "manual", "method": "POST", "path": "/api/v1/checkin/event/:id/manual", "desc": "Manually check in an attendee." },
+        { "name": "manifest", "method": "GET", "path": "/api/v1/checkin/event/:id/manifest", "desc": "Offline manifest (ticket hashes + statuses); pass ?since for a delta." },
+        { "name": "stats", "method": "GET", "path": "/api/v1/checkin/event/:id/stats", "desc": "Live check-in stats snapshot." },
+        { "name": "registerDevice", "method": "POST", "path": "/api/v1/checkin/device/register", "desc": "Register a scanning device." },
+        { "name": "live", "method": "GET", "path": "/api/v1/checkin/event/:id/live", "kind": "sse", "desc": "Server-Sent Events stream of live check-in stats." },
+        { "name": "gate", "method": "GET", "path": "/api/v1/checkin/event/:id/gate/:gate", "desc": "Per-gate check-in stats." },
+        { "name": "export", "method": "GET", "path": "/api/v1/checkin/event/:id/export", "kind": "binary", "desc": "Check-in log CSV (text/csv bytes)." }
+      ]
+    },
+    {
+      "ns": "scan",
+      "title": "Scanner-token check-in",
+      "desc": "Passwordless gate scanning using a short-lived scanner token (the /scan kiosk surface).",
+      "endpoints": [
+        { "name": "exchange", "method": "POST", "path": "/api/v1/checkin-token/exchange", "desc": "Exchange a scanner token for a scoped session." },
+        { "name": "session", "method": "GET", "path": "/api/v1/checkin-token/me", "desc": "Current scanner session (event + gate context)." },
+        { "name": "scan", "method": "POST", "path": "/api/v1/checkin-token/scan", "desc": "Validate a ticket with the scanner session." },
+        { "name": "manifest", "method": "GET", "path": "/api/v1/checkin-token/manifest", "desc": "Offline manifest for the scanner session." },
+        { "name": "batch", "method": "POST", "path": "/api/v1/checkin-token/batch", "desc": "Flush offline scans for the scanner session." }
+      ]
+    },
+    {
+      "ns": "search",
+      "title": "Search",
+      "desc": "Full-text + faceted event search.",
+      "endpoints": [
+        { "name": "query", "method": "GET", "path": "/api/v1/search", "desc": "Full-text + faceted search." },
+        { "name": "suggest", "method": "GET", "path": "/api/v1/search/suggest", "desc": "Type-ahead suggestions." },
+        { "name": "trending", "method": "GET", "path": "/api/v1/search/trending", "desc": "Trending search terms." },
+        { "name": "popular", "method": "GET", "path": "/api/v1/search/popular/:city", "desc": "Popular searches in a city." }
+      ]
+    },
+    {
+      "ns": "media",
+      "title": "Media",
+      "desc": "Image/asset uploads and the stable /media/:id resolver.",
+      "endpoints": [
+        { "name": "upload", "method": "POST", "path": "/api/v1/media/upload", "kind": "multipart", "desc": "Upload an image/asset (multipart/form-data)." }
+      ]
+    },
+    {
+      "ns": "organizer",
+      "title": "Organizer",
+      "desc": "Authenticated organizer surface: organizations, members, events, ticket types, schedules, sections, promo codes, attendees, payouts, refunds, reports and messaging.",
+      "endpoints": [
+        { "name": "setup", "method": "POST", "path": "/api/v1/organizer/setup", "desc": "Bootstrap an organizer account + first organization." },
+        { "name": "me", "method": "GET", "path": "/api/v1/organizer/me", "desc": "Current organizer context (orgs + memberships)." },
+        { "name": "createOrganization", "method": "POST", "path": "/api/v1/organizer/organizations", "desc": "Create an organization." },
+        { "name": "getOrganization", "method": "GET", "path": "/api/v1/organizer/organizations/:orgId", "desc": "Organization detail." },
+        { "name": "updateOrganization", "method": "PUT", "path": "/api/v1/organizer/organizations/:orgId", "desc": "Update an organization." },
+        { "name": "setOrganizationStatus", "method": "PUT", "path": "/api/v1/organizer/organizations/:orgId/status", "desc": "Change an organization's status." },
+        { "name": "members", "method": "GET", "path": "/api/v1/organizer/organizations/:orgId/members", "desc": "List organization members." },
+        { "name": "invite", "method": "POST", "path": "/api/v1/organizer/organizations/:orgId/invites", "desc": "Invite a member." },
+        { "name": "resendInvite", "method": "POST", "path": "/api/v1/organizer/organizations/:orgId/invites/:memberId/resend", "desc": "Resend a member invite." },
+        { "name": "removeMember", "method": "DELETE", "path": "/api/v1/organizer/organizations/:orgId/members/:memberId", "desc": "Remove a member." },
+        { "name": "events", "method": "GET", "path": "/api/v1/organizer/events", "desc": "List the organizer's events." },
+        { "name": "createEvent", "method": "POST", "path": "/api/v1/organizer/events", "desc": "Create a draft event." },
+        { "name": "getEvent", "method": "GET", "path": "/api/v1/organizer/events/:id", "desc": "Organizer event detail." },
+        { "name": "updateEvent", "method": "PUT", "path": "/api/v1/organizer/events/:id", "desc": "Update an event." },
+        { "name": "setEventStatus", "method": "PUT", "path": "/api/v1/organizer/events/:id/status", "desc": "Change an event's status." },
+        { "name": "publishEvent", "method": "POST", "path": "/api/v1/organizer/events/:id/publish", "desc": "Publish a draft event." },
+        { "name": "unpublishEvent", "method": "POST", "path": "/api/v1/organizer/events/:id/unpublish", "desc": "Unpublish a published event back to draft." },
+        { "name": "deleteEvent", "method": "DELETE", "path": "/api/v1/organizer/events/:id", "desc": "Cancel/delete an event." },
+        { "name": "tickets", "method": "GET", "path": "/api/v1/organizer/events/:id/tickets", "desc": "List an event's ticket types." },
+        { "name": "createTicket", "method": "POST", "path": "/api/v1/organizer/events/:id/tickets", "desc": "Create a ticket type." },
+        { "name": "updateTicket", "method": "PUT", "path": "/api/v1/organizer/events/:id/tickets/:tid", "desc": "Update a ticket type." },
+        { "name": "deleteTicket", "method": "DELETE", "path": "/api/v1/organizer/events/:id/tickets/:tid", "desc": "Delete a ticket type." },
+        { "name": "schedule", "method": "GET", "path": "/api/v1/organizer/events/:id/schedule", "desc": "List schedule sessions." },
+        { "name": "createSchedule", "method": "POST", "path": "/api/v1/organizer/events/:id/schedule", "desc": "Add a schedule session." },
+        { "name": "updateSchedule", "method": "PUT", "path": "/api/v1/organizer/events/:id/schedule/:sid", "desc": "Update a schedule session." },
+        { "name": "deleteSchedule", "method": "DELETE", "path": "/api/v1/organizer/events/:id/schedule/:sid", "desc": "Delete a schedule session." },
+        { "name": "sections", "method": "GET", "path": "/api/v1/organizer/events/:id/sections", "desc": "List seating/venue sections." },
+        { "name": "createSection", "method": "POST", "path": "/api/v1/organizer/events/:id/sections", "desc": "Add a section." },
+        { "name": "updateSection", "method": "PUT", "path": "/api/v1/organizer/events/:id/sections/:sid", "desc": "Update a section." },
+        { "name": "deleteSection", "method": "DELETE", "path": "/api/v1/organizer/events/:id/sections/:sid", "desc": "Delete a section." },
+        { "name": "promoCodes", "method": "GET", "path": "/api/v1/organizer/promo-codes", "desc": "List promo codes." },
+        { "name": "createPromoCode", "method": "POST", "path": "/api/v1/organizer/promo-codes", "desc": "Create a promo code." },
+        { "name": "updatePromoCode", "method": "PUT", "path": "/api/v1/organizer/promo-codes/:id", "desc": "Update a promo code." },
+        { "name": "deletePromoCode", "method": "DELETE", "path": "/api/v1/organizer/promo-codes/:id", "desc": "Delete a promo code." },
+        { "name": "eventAnalytics", "method": "GET", "path": "/api/v1/organizer/events/:id/analytics", "desc": "Sales/analytics for an event." },
+        { "name": "eventAttendees", "method": "GET", "path": "/api/v1/organizer/events/:id/attendees", "desc": "Attendee CRM list for an event." },
+        { "name": "eventExport", "method": "GET", "path": "/api/v1/organizer/events/:id/export", "kind": "binary", "desc": "Attendee export CSV (text/csv bytes)." },
+        { "name": "payouts", "method": "GET", "path": "/api/v1/organizer/payouts", "desc": "List payouts." },
+        { "name": "payout", "method": "GET", "path": "/api/v1/organizer/payouts/:id", "desc": "Payout detail." },
+        { "name": "requestPayout", "method": "POST", "path": "/api/v1/organizer/payouts/request", "desc": "Request a payout." },
+        { "name": "updatePayoutSettings", "method": "PUT", "path": "/api/v1/organizer/payout-settings", "desc": "Update payout settings." },
+        { "name": "refunds", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/refunds", "desc": "List refund requests for an org." },
+        { "name": "decideRefund", "method": "POST", "path": "/api/v1/organizer/refunds/:id/decide", "desc": "Approve or deny a refund request." },
+        { "name": "reports", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/reports", "desc": "List reports filed against an org (read-only)." },
+        { "name": "resolveReport", "method": "POST", "path": "/api/v1/organizer/reports/:id/resolve", "desc": "Resolve a report (admins only; organizers receive 403)." },
+        { "name": "messages", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/messages", "desc": "Org-wide buyer message threads." },
+        { "name": "overview", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/overview", "desc": "Org dashboard overview." },
+        { "name": "referral", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/referral", "desc": "Referral program summary + commissions." },
+        { "name": "notifications", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/notifications", "desc": "Org notifications." },
+        { "name": "fundWallet", "method": "POST", "path": "/api/v1/organizer/wallets/org/:orgId/fund", "desc": "Top up the org wallet (returns a payment intent)." },
+        { "name": "fundWalletStatus", "method": "GET", "path": "/api/v1/organizer/wallets/org/:orgId/fund/:orderId", "desc": "Poll a wallet top-up payment." },
+        { "name": "payoutDetails", "method": "GET", "path": "/api/v1/organizer/orgs/:orgId/payout-details", "desc": "Stored payout destinations." },
+        { "name": "updatePayoutDetails", "method": "PUT", "path": "/api/v1/organizer/orgs/:orgId/payout-details/:currency", "desc": "Set payout details for a currency." },
+        { "name": "ticketMessage", "method": "POST", "path": "/api/v1/organizer/tickets/:ticketId/message", "desc": "Reply to a buyer on a ticket thread." },
+        { "name": "messageThread", "method": "GET", "path": "/api/v1/organizer/messages/:threadId", "desc": "A single org message thread." }
+      ]
+    },
+    {
+      "ns": "wallets",
+      "title": "Wallets",
+      "desc": "Organization wallet balances and ledger.",
+      "endpoints": [
+        { "name": "list", "method": "GET", "path": "/api/v1/organizer/wallets", "desc": "List wallets the caller can see." },
+        { "name": "get", "method": "GET", "path": "/api/v1/organizer/wallets/org/:orgId", "desc": "An org's wallet balances (per currency)." },
+        { "name": "bootstrap", "method": "POST", "path": "/api/v1/organizer/wallets/org/:orgId/bootstrap", "desc": "Provision an org's wallet." },
+        { "name": "transactions", "method": "GET", "path": "/api/v1/organizer/wallets/org/:orgId/transactions", "desc": "Wallet ledger transactions." }
+      ]
+    },
+    {
+      "ns": "scannerTokens",
+      "title": "Scanner tokens",
+      "desc": "Manage short-lived gate-scanner tokens for staff devices.",
+      "endpoints": [
+        { "name": "list", "method": "GET", "path": "/api/v1/organizer/scanner-tokens/org/:orgId", "desc": "List scanner tokens." },
+        { "name": "create", "method": "POST", "path": "/api/v1/organizer/scanner-tokens/org/:orgId", "desc": "Mint a scanner token." },
+        { "name": "update", "method": "PUT", "path": "/api/v1/organizer/scanner-tokens/org/:orgId/:tokenId", "desc": "Update a scanner token." },
+        { "name": "delete", "method": "DELETE", "path": "/api/v1/organizer/scanner-tokens/org/:orgId/:tokenId", "desc": "Revoke a scanner token." },
+        { "name": "reissue", "method": "POST", "path": "/api/v1/organizer/scanner-tokens/org/:orgId/:tokenId/reissue", "desc": "Reissue a scanner token's secret." },
+        { "name": "metrics", "method": "GET", "path": "/api/v1/organizer/scanner-tokens/org/:orgId/:tokenId/metrics", "desc": "Usage metrics for a scanner token." }
+      ]
+    },
+    {
+      "ns": "integrations",
+      "title": "Integrations",
+      "desc": "API keys, MCP tokens, and integration usage metrics.",
+      "endpoints": [
+        { "name": "metrics", "method": "GET", "path": "/api/v1/organizer/integrations/org/:orgId/metrics", "desc": "Integration usage metrics." },
+        { "name": "apiCalls", "method": "GET", "path": "/api/v1/organizer/integrations/org/:orgId/api-calls", "desc": "Recent API call log." },
+        { "name": "mcpCalls", "method": "GET", "path": "/api/v1/organizer/integrations/org/:orgId/mcp-calls", "desc": "Recent MCP tool-call log." },
+        { "name": "listApiKeys", "method": "GET", "path": "/api/v1/organizer/integrations/org/:orgId/api-keys", "desc": "List API keys." },
+        { "name": "createApiKey", "method": "POST", "path": "/api/v1/organizer/integrations/org/:orgId/api-keys", "desc": "Mint an API key (plaintext returned once)." },
+        { "name": "updateApiKey", "method": "PUT", "path": "/api/v1/organizer/integrations/org/:orgId/api-keys/:keyId", "desc": "Update an API key (scopes, status, allowlist)." },
+        { "name": "rotateApiKey", "method": "POST", "path": "/api/v1/organizer/integrations/org/:orgId/api-keys/:keyId/rotate", "desc": "Rotate an API key's secret." },
+        { "name": "deleteApiKey", "method": "DELETE", "path": "/api/v1/organizer/integrations/org/:orgId/api-keys/:keyId", "desc": "Revoke an API key." },
+        { "name": "listMcpTokens", "method": "GET", "path": "/api/v1/organizer/integrations/org/:orgId/mcp-tokens", "desc": "List MCP tokens." },
+        { "name": "createMcpToken", "method": "POST", "path": "/api/v1/organizer/integrations/org/:orgId/mcp-tokens", "desc": "Mint an MCP token." },
+        { "name": "updateMcpToken", "method": "PUT", "path": "/api/v1/organizer/integrations/org/:orgId/mcp-tokens/:tokenId", "desc": "Update an MCP token." },
+        { "name": "deleteMcpToken", "method": "DELETE", "path": "/api/v1/organizer/integrations/org/:orgId/mcp-tokens/:tokenId", "desc": "Revoke an MCP token." }
+      ]
+    },
+    {
+      "ns": "eventCustomization",
+      "title": "Event customization",
+      "desc": "Per-event white-label theming.",
+      "endpoints": [
+        { "name": "get", "method": "GET", "path": "/api/v1/organizer/event-customization/:eventId", "desc": "Get an event's customization." },
+        { "name": "update", "method": "PUT", "path": "/api/v1/organizer/event-customization/:eventId", "desc": "Update an event's customization." }
+      ]
+    },
+    {
+      "ns": "growth",
+      "title": "Growth",
+      "desc": "Comp tickets, CSV import, broadcasts and attendee tags.",
+      "endpoints": [
+        { "name": "mintComps", "method": "POST", "path": "/api/v1/organizer/growth/events/:eventId/comps", "desc": "Issue complimentary tickets." },
+        { "name": "importCompsCsv", "method": "POST", "path": "/api/v1/organizer/growth/events/:eventId/comps/import-csv", "desc": "Bulk-issue comps from CSV." },
+        { "name": "listComps", "method": "GET", "path": "/api/v1/organizer/growth/events/:eventId/comps", "desc": "List issued comps." },
+        { "name": "resendComp", "method": "POST", "path": "/api/v1/organizer/growth/events/:eventId/comps/:ticketId/resend", "desc": "Resend a comp ticket email." },
+        { "name": "broadcastEvent", "method": "POST", "path": "/api/v1/organizer/growth/events/:eventId/broadcast", "desc": "Broadcast to an event's attendees." },
+        { "name": "broadcastOrg", "method": "POST", "path": "/api/v1/organizer/growth/orgs/:orgId/broadcast", "desc": "Broadcast to an org's followers/subscribers." },
+        { "name": "listBroadcasts", "method": "GET", "path": "/api/v1/organizer/growth/orgs/:orgId/broadcasts", "desc": "List sent broadcasts." },
+        { "name": "addTags", "method": "POST", "path": "/api/v1/organizer/growth/tags", "desc": "Tag attendees (body: orgId, ticketIds, tag)." },
+        { "name": "removeTag", "method": "DELETE", "path": "/api/v1/organizer/growth/tags", "desc": "Remove a tag (body: orgId, ticketId, tag)." },
+        { "name": "listTags", "method": "GET", "path": "/api/v1/organizer/growth/orgs/:orgId/tags", "desc": "List tags for an org." },
+        { "name": "tagAttendees", "method": "GET", "path": "/api/v1/organizer/growth/orgs/:orgId/tags/:tag/attendees", "desc": "List attendees with a given tag." }
+      ]
+    },
+    {
+      "ns": "publicEvents",
+      "title": "Public events (vanity)",
+      "desc": "Public org/event read endpoints used by hosted pages and white-label sites.",
+      "endpoints": [
+        { "name": "getBySlug", "method": "GET", "path": "/api/v1/public/events/:slug", "desc": "Public event by slug." },
+        { "name": "orgEvents", "method": "GET", "path": "/api/v1/public/events/orgs/by/:orgId", "desc": "An organization's public events." },
+        { "name": "getByOrgEvent", "method": "GET", "path": "/api/v1/public/events/by/:orgId/:eventId", "desc": "Public event by org + event id." },
+        { "name": "getById", "method": "GET", "path": "/api/v1/public/events/by-id/:eventId", "desc": "Public event by id." },
+        { "name": "preview", "method": "GET", "path": "/api/v1/public/events/preview/:eventId", "desc": "Draft event preview (token-gated)." }
+      ]
+    },
+    {
+      "ns": "site",
+      "title": "Public site",
+      "desc": "Sitemap, newsletter signup and platform status.",
+      "endpoints": [
+        { "name": "sitemap", "method": "GET", "path": "/api/v1/public/sitemap.xml", "kind": "binary", "desc": "Sitemap XML (application/xml bytes)." },
+        { "name": "newsletterStart", "method": "POST", "path": "/api/v1/public/newsletter/start", "desc": "Begin newsletter double-opt-in." },
+        { "name": "newsletterConfirm", "method": "POST", "path": "/api/v1/public/newsletter", "desc": "Confirm a newsletter subscription." },
+        { "name": "status", "method": "GET", "path": "/api/v1/public/status", "desc": "Platform status + incidents." }
+      ]
+    },
+    {
+      "ns": "community",
+      "title": "Community",
+      "desc": "Verified-attendee reviews, organizer follows and event waitlists.",
+      "endpoints": [
+        { "name": "submitReview", "method": "POST", "path": "/api/v1/community/reviews", "desc": "Submit a verified-attendee review (ticketCode + email prove ownership)." },
+        { "name": "orgReviews", "method": "GET", "path": "/api/v1/community/orgs/:orgId/reviews", "desc": "Published reviews for an org." },
+        { "name": "eventReviews", "method": "GET", "path": "/api/v1/community/events/:eventId/reviews", "desc": "Published reviews for an event." },
+        { "name": "follow", "method": "POST", "path": "/api/v1/community/orgs/:orgId/follow", "desc": "Follow an organizer." },
+        { "name": "unfollow", "method": "GET", "path": "/api/v1/community/unfollow/:token", "desc": "Unsubscribe via emailed token." },
+        { "name": "joinWaitlist", "method": "POST", "path": "/api/v1/community/events/:eventId/waitlist", "desc": "Join an event waitlist." },
+        { "name": "acceptWaitlist", "method": "GET", "path": "/api/v1/community/waitlist/accept/:id/:token", "desc": "Accept a waitlist offer via emailed token." },
+        { "name": "manageReviews", "method": "GET", "path": "/api/v1/community/orgs/:orgId/reviews/manage", "desc": "Organizer view of all reviews (incl. pending)." },
+        { "name": "replyReview", "method": "POST", "path": "/api/v1/community/reviews/:id/reply", "desc": "Organizer reply to a review." },
+        { "name": "setReviewStatus", "method": "POST", "path": "/api/v1/community/reviews/:id/status", "desc": "Publish/hide a review." },
+        { "name": "followers", "method": "GET", "path": "/api/v1/community/orgs/:orgId/followers", "desc": "List an org's followers." },
+        { "name": "removeFollower", "method": "DELETE", "path": "/api/v1/community/orgs/:orgId/followers/:followerId", "desc": "Remove a follower." },
+        { "name": "eventWaitlist", "method": "GET", "path": "/api/v1/community/events/:eventId/waitlist", "desc": "List an event's waitlist." },
+        { "name": "offerWaitlist", "method": "POST", "path": "/api/v1/community/events/:eventId/waitlist/offer", "desc": "Offer spots to waitlisted attendees." }
+      ]
+    },
+    {
+      "ns": "track",
+      "title": "Tracking",
+      "desc": "Lightweight page-view tracking.",
+      "endpoints": [
+        { "name": "view", "method": "POST", "path": "/api/v1/track/view", "desc": "Record a page view." }
+      ]
+    },
+    {
+      "ns": "webhooks",
+      "title": "Webhooks",
+      "desc": "Register webhook endpoints and inspect/replay deliveries. (Use client.webhooks.verify() to validate inbound signatures.)",
+      "endpoints": [
+        { "name": "catalog", "method": "GET", "path": "/api/v1/webhooks/catalog", "desc": "List subscribable event types." },
+        { "name": "list", "method": "GET", "path": "/api/v1/webhooks", "desc": "List registered webhook endpoints." },
+        { "name": "create", "method": "POST", "path": "/api/v1/webhooks", "desc": "Register a webhook endpoint." },
+        { "name": "update", "method": "PUT", "path": "/api/v1/webhooks/:id", "desc": "Update a webhook endpoint." },
+        { "name": "rotateSecret", "method": "POST", "path": "/api/v1/webhooks/:id/rotate-secret", "desc": "Rotate a webhook signing secret." },
+        { "name": "delete", "method": "DELETE", "path": "/api/v1/webhooks/:id", "desc": "Delete a webhook endpoint." },
+        { "name": "deliveries", "method": "GET", "path": "/api/v1/webhooks/:id/deliveries", "desc": "List delivery attempts for an endpoint." },
+        { "name": "test", "method": "POST", "path": "/api/v1/webhooks/:id/test", "desc": "Send a test event to an endpoint." },
+        { "name": "replay", "method": "POST", "path": "/api/v1/webhooks/deliveries/:id/replay", "desc": "Replay a past delivery." }
+      ]
+    },
+    {
+      "ns": "whiteLabel",
+      "title": "White-label",
+      "desc": "Self-contained white-label surface: events, ticket types, customization, orders, tickets and check-in under one integration.",
+      "endpoints": [
+        { "name": "me", "method": "GET", "path": "/api/v1/white-label/me", "desc": "The integration's white-label context." },
+        { "name": "events", "method": "GET", "path": "/api/v1/white-label/events", "desc": "List white-label events." },
+        { "name": "createEvent", "method": "POST", "path": "/api/v1/white-label/events", "desc": "Create a white-label event." },
+        { "name": "getEvent", "method": "GET", "path": "/api/v1/white-label/events/:id", "desc": "White-label event detail." },
+        { "name": "updateEvent", "method": "PUT", "path": "/api/v1/white-label/events/:id", "desc": "Update a white-label event." },
+        { "name": "deleteEvent", "method": "DELETE", "path": "/api/v1/white-label/events/:id", "desc": "Delete a white-label event." },
+        { "name": "ticketTypes", "method": "GET", "path": "/api/v1/white-label/events/:eventId/ticket-types", "desc": "List ticket types." },
+        { "name": "createTicketType", "method": "POST", "path": "/api/v1/white-label/events/:eventId/ticket-types", "desc": "Create a ticket type." },
+        { "name": "getCustomization", "method": "GET", "path": "/api/v1/white-label/events/:eventId/customization", "desc": "Get event customization." },
+        { "name": "updateCustomization", "method": "PUT", "path": "/api/v1/white-label/events/:eventId/customization", "desc": "Update event customization." },
+        { "name": "orders", "method": "GET", "path": "/api/v1/white-label/orders", "desc": "List white-label orders." },
+        { "name": "tickets", "method": "GET", "path": "/api/v1/white-label/tickets", "desc": "List white-label tickets." },
+        { "name": "checkinScan", "method": "POST", "path": "/api/v1/white-label/checkin/scan", "desc": "Validate a ticket at a white-label gate." },
+        { "name": "checkinStats", "method": "GET", "path": "/api/v1/white-label/checkin/stats/:eventId", "desc": "White-label check-in stats." },
+        { "name": "wallets", "method": "GET", "path": "/api/v1/white-label/wallets", "desc": "White-label wallet balances." }
+      ]
+    },
+    {
+      "ns": "support",
+      "title": "Support",
+      "desc": "Support tickets and threaded messages.",
+      "endpoints": [
+        { "name": "list", "method": "GET", "path": "/api/v1/support", "desc": "List support tickets." },
+        { "name": "create", "method": "POST", "path": "/api/v1/support", "desc": "Open a support ticket." },
+        { "name": "get", "method": "GET", "path": "/api/v1/support/:id", "desc": "Support ticket detail." },
+        { "name": "sendMessage", "method": "POST", "path": "/api/v1/support/:id/messages", "desc": "Reply on a support ticket." }
+      ]
+    },
+    {
+      "ns": "util",
+      "title": "Utilities",
+      "desc": "Helper endpoints.",
+      "endpoints": [
+        { "name": "resolveCoords", "method": "POST", "path": "/api/v1/util/resolve-coords", "desc": "Resolve an address to coordinates." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@zatabox/node",
+  "version": "0.3.0",
+  "description": "Official Zatabox Tickets Node.js SDK. Server-side client for the white-label event ticketing API.",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test src/__tests__/client.test.js"
+  },
+  "keywords": [
+    "zatabox",
+    "ticketing",
+    "events",
+    "white-label",
+    "api"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mysmartrobot/zataboxtickets.git",
+    "directory": "node"
+  },
+  "homepage": "https://github.com/mysmartrobot/zataboxtickets/tree/main/node",
+  "bugs": "https://github.com/mysmartrobot/zataboxtickets/issues"
+}

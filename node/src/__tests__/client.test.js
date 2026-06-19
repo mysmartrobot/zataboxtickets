@@ -11,14 +11,13 @@ function jsonRes(status, obj, headers = {}) {
     headers: h, text: () => Promise.resolve(JSON.stringify(obj)),
   });
 }
-function rawRes(status, buf, ct) {
-  const h = new Map([['content-type', ct], ['content-disposition', 'inline; filename="t.pdf"']]);
-  return Promise.resolve({
-    ok: status < 400, status, statusText: '', headers: h,
-    arrayBuffer: () => Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)),
-    text: () => Promise.resolve(''),
-  });
-}
+
+// Every namespace the publicly-documented SDK exposes.
+const PUBLIC_NS = ['auth', 'events', 'organizer', 'eventCustomization', 'tickets',
+  'orders', 'payments', 'checkin', 'community', 'growth', 'users', 'integrations', 'webhooks'];
+// Internal/undocumented surfaces that must NEVER be exposed in this public SDK.
+const FORBIDDEN_NS = ['admin', 'media', 'whiteLabel', 'wallets', 'scannerTokens',
+  'support', 'util', 'track', 'site', 'savedSearches', 'publicEvents', 'scan', 'search', 'dataExport'];
 
 test('constructor requires a credential', () => {
   assert.throws(() => new ZataboxClient({}), /apiKey.*bearerToken/);
@@ -31,22 +30,23 @@ test('base URL routing by key prefix', () => {
   assert.strictEqual(new Client({ apiKey: 'vt_test_x', baseUrl: 'http://localhost:4000' }).baseUrl, 'http://localhost:4000');
 });
 
-test('every advertised namespace is present', () => {
+test('exactly the documented namespaces are present', () => {
   const c = new Client({ apiKey: 'vt_live_x' });
-  for (const ns of ['auth', 'users', 'events', 'orders', 'payments', 'checkin', 'organizer',
-    'webhooks', 'community', 'growth', 'whiteLabel', 'integrations', 'wallets', 'media']) {
+  for (const ns of PUBLIC_NS) {
     assert.strictEqual(typeof c[ns], 'object', `missing namespace ${ns}`);
   }
   assert.strictEqual(typeof c.events.list, 'function');
   assert.strictEqual(typeof c.webhooks.verify, 'function');
-  assert.strictEqual(typeof c.media.upload, 'function');
   assert.strictEqual(typeof c.checkin.liveUrl, 'function');
 });
 
-test('platform administration is NOT exposed', () => {
-  // The /api/v1/admin/* surface must never ship in this public SDK.
+test('undocumented / internal namespaces are NOT exposed', () => {
+  // Platform admin, white-label, media upload, wallets, scanner tokens, etc. must
+  // never ship in a public integrator SDK.
   const c = new Client({ apiKey: 'vt_live_x' });
-  assert.strictEqual(c.admin, undefined, 'admin namespace must not exist');
+  for (const ns of FORBIDDEN_NS) {
+    assert.strictEqual(c[ns], undefined, `forbidden namespace exposed: ${ns}`);
+  }
 });
 
 test('GET unwraps the data envelope and builds query', async () => {
@@ -110,14 +110,6 @@ test('5xx retries then succeeds', async () => {
   assert.strictEqual(n, 2);
 });
 
-test('binary endpoints return bytes + content type', async () => {
-  const c = new Client({ apiKey: 'vt_live_x', fetch: () => rawRes(200, Buffer.from('%PDF'), 'application/pdf') });
-  const r = await c.tickets.pdf('5');
-  assert.ok(Buffer.isBuffer(r.data));
-  assert.strictEqual(r.contentType, 'application/pdf');
-  assert.strictEqual(r.filename, 't.pdf');
-});
-
 test('paginate follows both cursor shapes', async () => {
   const c = new Client({ apiKey: 'vt_live_x', fetch: (url) => {
     if (/cursor=c2/.test(url)) return jsonRes(200, { success: true, data: { items: [2], nextCursor: null } });
@@ -151,18 +143,6 @@ test('setBearerToken swaps the credential', async () => {
   c.setBearerToken('jwt2');
   await c.users.me();
   assert.strictEqual(auth, 'Bearer jwt2');
-});
-
-test('media.upload builds a multipart form', async () => {
-  let body;
-  const c = new Client({ apiKey: 'vt_live_x', fetch: (url, init) => { body = init.body; return jsonRes(200, { success: true, data: { ok: true } }); } });
-  await c.media.upload(Buffer.from('PNGDATA'), { filename: 'cover.png', contentType: 'image/png', fields: { caption: 'hi' } });
-  assert.ok(body instanceof FormData);
-  const file = body.get('file');
-  assert.strictEqual(file.name, 'cover.png');
-  assert.strictEqual(file.type, 'image/png');
-  assert.strictEqual(await file.text(), 'PNGDATA');
-  assert.strictEqual(body.get('caption'), 'hi');
 });
 
 test('VERSION is exported', () => {

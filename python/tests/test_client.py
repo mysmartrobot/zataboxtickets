@@ -12,6 +12,15 @@ import zatabox
 from zatabox import Client, ZataboxError
 import zatabox._http as _http
 
+# Every namespace the publicly-documented SDK exposes.
+PUBLIC_NS = ["auth", "events", "organizer", "event_customization", "tickets",
+             "orders", "payments", "checkin", "community", "growth", "users",
+             "integrations", "webhooks"]
+# Internal/undocumented surfaces that must NEVER ship in a public SDK.
+FORBIDDEN_NS = ["admin", "media", "white_label", "wallets", "scanner_tokens",
+                "support", "util", "track", "site", "saved_searches",
+                "public_events", "scan", "search", "data_export"]
+
 
 class FakeResp:
     def __init__(self, body=b"", headers=None):
@@ -72,19 +81,18 @@ class TestClient(unittest.TestCase):
 
     def test_namespaces_present(self):
         c = Client(api_key="vt_live_x")
-        for ns in ["auth", "users", "events", "orders", "checkin", "organizer",
-                   "webhooks", "community", "growth", "white_label",
-                   "saved_searches", "public_events", "media"]:
+        for ns in PUBLIC_NS:
             self.assertTrue(hasattr(c, ns), "missing namespace %s" % ns)
         self.assertTrue(callable(c.events.list))
         self.assertTrue(callable(c.webhooks.verify))
-        self.assertTrue(callable(c.media.upload))
         self.assertTrue(callable(c.checkin.live_url))
 
-    def test_admin_not_exposed(self):
-        # The /api/v1/admin/* surface must never ship in this public SDK.
+    def test_forbidden_namespaces_absent(self):
+        # The platform admin / white-label / media / wallets surfaces must never
+        # ship in a public integrator SDK.
         c = Client(api_key="vt_live_x")
-        self.assertFalse(hasattr(c, "admin"), "admin namespace must not be exposed")
+        for ns in FORBIDDEN_NS:
+            self.assertFalse(hasattr(c, ns), "forbidden namespace exposed: %s" % ns)
 
     def test_get_unwraps_and_builds_query(self):
         captured = {}
@@ -188,19 +196,6 @@ class TestClient(unittest.TestCase):
 
         run(self)
 
-    def test_binary(self):
-        def fake(req, timeout=None):
-            return FakeResp(b"%PDF", {"Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="t.pdf"'})
-
-        @patch_urlopen(fake)
-        def run(self):
-            r = Client(api_key="vt_live_x").tickets.pdf("5")
-            self.assertEqual(r["data"], b"%PDF")
-            self.assertEqual(r["content_type"], "application/pdf")
-            self.assertEqual(r["filename"], "t.pdf")
-
-        run(self)
-
     def test_paginate(self):
         def fake(req, timeout=None):
             if "cursor=c2" in req.full_url:
@@ -247,29 +242,6 @@ class TestClient(unittest.TestCase):
             c.set_bearer_token("jwt2")
             c.users.me()
             self.assertEqual(captured["auth"], "Bearer jwt2")
-
-        run(self)
-
-    def test_upload_multipart(self):
-        captured = {}
-
-        def fake(req, timeout=None):
-            captured["body"] = req.data
-            captured["ct"] = req.get_header("Content-type")
-            return json_ok({"success": True, "data": {"ok": True}})
-
-        @patch_urlopen(fake)
-        def run(self):
-            Client(api_key="vt_live_x").media.upload(
-                b"PNGDATA", filename="cover.png", content_type="image/png", fields={"caption": "hi"}
-            )
-            body = captured["body"]
-            self.assertTrue(captured["ct"].startswith("multipart/form-data; boundary="))
-            self.assertIn(b'name="file"; filename="cover.png"', body)
-            self.assertIn(b"Content-Type: image/png", body)
-            self.assertIn(b"PNGDATA", body)
-            self.assertIn(b'name="caption"', body)
-            self.assertIn(b"hi", body)
 
         run(self)
 

@@ -72,14 +72,12 @@ reading the next cursor from any of those shapes and stopping when it is null.
 
 ## 7. Special endpoint kinds (`kind` in the manifest)
 
-- `binary` PDF/CSV/XML byte streams (`tickets.pdf`, `orders.invoice`,
-  `checkin.export`, `organizer.eventExport`, `site.sitemap`). The method returns
-  raw bytes (and content type) instead of a parsed envelope.
-- `sse` `checkin.live` is a Server-Sent-Events stream. Generated as a
-  `*Url(...)` helper that returns the fully-qualified URL (with auth handled by the
-  caller's chosen SSE client).
-- `multipart` `media.upload` is `multipart/form-data`; it is hand-written in each
-  core rather than generated.
+- `sse` `checkin.live` is a Server-Sent-Events stream. Generated as a `*Url(...)`
+  helper that returns the fully-qualified URL (with auth handled by the caller's
+  chosen SSE client).
+
+(`json` is the default. The core also carries low-level support for `binary`/`raw`
+responses, but the public surface has no binary endpoints.)
 
 ## 8. Webhooks (inbound)
 
@@ -99,8 +97,8 @@ Returns the parsed JSON event on success, raises `ZataboxError` otherwise.
 | Go | `PascalCase` (exported) | `PascalCase` |
 
 The generator converts the manifest's canonical `camelCase` names into each
-language's idiom, so `client.savedSearches` (Node) is `client.saved_searches`
-(Python/Ruby), `$client->savedSearches` (PHP) and `client.SavedSearches` (Go).
+language's idiom, so `client.eventCustomization` (Node) is `client.event_customization`
+(Python/Ruby), `$client->eventCustomization` (PHP) and `client.EventCustomization` (Go).
 
 ## 10. Zero runtime dependencies
 

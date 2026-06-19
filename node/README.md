@@ -3,11 +3,11 @@
 Official **Node.js SDK** for the [Zatabox Tickets](https://zatabox.com) REST API the
 white-label event-ticketing platform where the box office is an API. This SDK is a
 thin, fully-typed client over `https://api.zatabox.com/api/v1` that handles auth,
-sandbox routing, idempotency, retries, pagination, binary downloads, file uploads and
+sandbox routing, idempotency, retries, pagination, live (SSE) streaming and
 webhook verification for you.
 
 - **Zero runtime dependencies** built on the global `fetch` and `node:crypto`.
-- **Complete** every one of the **244 REST endpoints** is a typed method.
+- **Complete** every one of the **78 REST endpoints** is a typed method.
 - **Generated, never drifts** the resource layer is emitted from the canonical
   [`endpoints.json`](../spec/endpoints.json) spec.
 - **TypeScript-first** ships hand-written + generated `.d.ts` declarations.
@@ -30,9 +30,7 @@ webhook verification for you.
 - [Idempotency](#idempotency)
 - [Retries, timeouts & networking](#retries-timeouts--networking)
 - [Pagination](#pagination)
-- [Binary downloads (PDF / CSV)](#binary-downloads-pdf--csv)
 - [Live check-in stream (SSE)](#live-check-in-stream-sse)
-- [File uploads](#file-uploads)
 - [Verifying inbound webhooks](#verifying-inbound-webhooks)
 - [End-to-end recipes](#end-to-end-recipes)
 - [TypeScript](#typescript)
@@ -55,12 +53,12 @@ webhook verification for you.
 
 ## Installation
 
-This SDK is **distributed via GitHub** — it is not published to npm. It lives in the
+This SDK is **distributed via GitHub** it is not published to npm. It lives in the
 `node/` directory of
 [`mysmartrobot/zataboxtickets`](https://github.com/mysmartrobot/zataboxtickets).
 Because npm cannot install a subdirectory of a git repo directly, use one of:
 
-**Option A — clone, then install the local path** (recommended):
+**Option A clone, then install the local path** (recommended):
 
 ```bash
 git clone https://github.com/mysmartrobot/zataboxtickets.git
@@ -70,14 +68,14 @@ npm install ./zataboxtickets/node
 This records `"@zatabox/node": "file:./zataboxtickets/node"` in your `package.json`.
 Update later with `git -C zataboxtickets pull && npm install ./zataboxtickets/node`.
 
-**Option B — git submodule** (pinned and easy to update):
+**Option B git submodule** (pinned and easy to update):
 
 ```bash
 git submodule add https://github.com/mysmartrobot/zataboxtickets.git vendor/zataboxtickets
 npm install ./vendor/zataboxtickets/node
 ```
 
-**Option C — vendor the folder**: copy the repo's `node/` directory into your project
+**Option C vendor the folder**: copy the repo's `node/` directory into your project
 and `require('./vendor/zatabox-node/src')`.
 
 The SDK has **zero dependencies**, so there is nothing else to fetch. Then import it:
@@ -231,12 +229,10 @@ share it.
 ## How methods map to endpoints
 
 Every endpoint is a method under a namespace: `zatabox.<namespace>.<method>(…)`. The
-26 namespaces are:
+13 namespaces are:
 
-`auth`, `users`, `savedSearches`, `dataExport`, `events`, `tickets`, `orders`,
-`payments`, `checkin`, `scan`, `search`, `media`, `organizer`, `wallets`,
-`scannerTokens`, `integrations`, `eventCustomization`, `growth`, `publicEvents`,
-`site`, `community`, `track`, `webhooks`, `whiteLabel`, `support`, `util`.
+`auth`, `events`, `organizer`, `eventCustomization`, `tickets`, `orders`, `payments`,
+`checkin`, `community`, `growth`, `users`, `integrations`, `webhooks`.
 
 Argument order is consistent everywhere:
 
@@ -250,10 +246,10 @@ method(pathParam1, pathParam2, …, payload?, opts?)
 - **`opts`** is a trailing options bag: `{ idempotencyKey, query, headers, raw }`.
 
 ```js
-await zatabox.events.list({ q: 'jazz', city: 'Lagos', limit: 20 });        // query
-await zatabox.events.get('warehouse-sessions-004');                        // path param
-await zatabox.organizer.updateTicket(eventId, ticketId, { price: 7500 });  // two path params + body
-await zatabox.orders.create(body, { idempotencyKey: myUuid });             // body + opts
+await zatabox.events.list({ q: 'jazz', city: 'Lagos', limit: 20 });            // query
+await zatabox.events.get('warehouse-sessions-004');                            // path param
+await zatabox.organizer.updateSchedule(eventId, sessionId, { sessionTitle: 'Keynote' }); // two path params + body
+await zatabox.orders.create(body, { idempotencyKey: myUuid });                 // body + opts
 ```
 
 ## Responses
@@ -340,32 +336,22 @@ Lists are cursor-paginated. Use the built-in async iterator, which follows the c
 across both response shapes the API uses (`pagination.cursor` or `nextCursor`):
 
 ```js
-for await (const page of zatabox.paginate(zatabox.organizer.events, { limit: 50 })) {
-  for (const ev of page.events ?? page.items) console.log(ev.id);
+for await (const page of zatabox.paginate(zatabox.events.list, { q: 'jazz', limit: 50 })) {
+  for (const ev of page.items) console.log(ev.id);
 }
 ```
 
-`paginate(listMethod, query)` accepts any list method and your base query. To page
+`paginate(listMethod, query)` accepts any cursor-paginated list method (e.g.
+`events.list`, `users.tickets`, `webhooks.deliveries`) and your base query. To page
 manually, read the cursor yourself and pass it back:
 
 ```js
 let cursor;
 do {
-  const page = await zatabox.organizer.events({ limit: 50, cursor });
+  const page = await zatabox.events.list({ limit: 50, cursor });
   // …handle page…
   cursor = page.pagination?.cursor ?? page.nextCursor ?? null;
 } while (cursor);
-```
-
-## Binary downloads (PDF / CSV)
-
-`tickets.pdf`, `orders.invoice`, `checkin.export`, `organizer.eventExport` and
-`site.sitemap` return raw bytes instead of JSON:
-
-```js
-const { data, contentType, filename } = await zatabox.tickets.pdf(ticketId);
-// data is a Buffer
-require('fs').writeFileSync(filename ?? 'ticket.pdf', data);
 ```
 
 ## Live check-in stream (SSE)
@@ -378,21 +364,6 @@ const url = zatabox.checkin.liveUrl(eventId);
 // Example with the `eventsource` package:
 const es = new EventSource(url, { headers: { Authorization: `Bearer ${apiKey}` } });
 es.addEventListener('stats', (e) => console.log(JSON.parse(e.data)));
-```
-
-## File uploads
-
-`media.upload` sends `multipart/form-data` (built with the platform `FormData`/`Blob`):
-
-```js
-const buf = require('fs').readFileSync('cover.jpg');
-const asset = await zatabox.media.upload(buf, {
-  filename: 'cover.jpg',
-  contentType: 'image/jpeg',
-  // field: 'file',          // form field name (default "file")
-  // fields: { alt: 'Cover' } // extra form fields
-});
-// Use asset.id / asset.url as an event coverImage, etc.
 ```
 
 ## Verifying inbound webhooks
@@ -451,25 +422,24 @@ if (result.status !== 'admitted') console.warn('denied:', result.reason);
 const stats = await zatabox.checkin.stats(eventId);
 ```
 
-### Issue and inspect a refund (buyer)
+### Request a refund (buyer)
 
 ```js
 await buyer.users.createRefund({ ticketId, reason: 'Cannot attend anymore' });
-const refunds = await buyer.users.refunds();
 ```
 
 ## TypeScript
 
 The package ships `.d.ts` declarations for the client core and every namespace, so
-methods, path params, options and the `ZataboxError`/`BinaryResponse` types are all
-typed. No `@types/*` install needed.
+methods, path params, options and the `ZataboxError` type are all typed. No
+`@types/*` install needed.
 
 ```ts
-import { ZataboxClient, ZataboxError, BinaryResponse } from '@zatabox/node';
+import { ZataboxClient, ZataboxError } from '@zatabox/node';
 
 const z = new ZataboxClient({ apiKey: process.env.ZATABOX_API_KEY! });
 const events = await z.events.list({ limit: 20 });
-const pdf: BinaryResponse = await z.tickets.pdf('5');
+const order = await z.orders.create({ items: [{ ticketTypeId: 'tkt_1', quantity: 2 }] });
 ```
 
 Response payloads are intentionally typed as `any` (the API returns rich, evolving
@@ -511,432 +481,175 @@ MIT
 
 <!-- BEGIN ENDPOINTS (generated by scripts/generate.mjs do not edit) -->
 
-The SDK exposes **244 endpoints** across **26 namespaces**. Every method is listed below with its idiomatic signature, the underlying HTTP route, and what it does. Path parameters are positional; reads take an optional query map and writes take an optional body, both followed by a call-options bag.
+The SDK exposes **78 endpoints** across **13 namespaces**. Every method is listed below with its idiomatic signature, the underlying HTTP route, and what it does. Path parameters are positional; reads take an optional query map and writes take an optional body, both followed by a call-options bag.
 
 ### `client.auth` Auth
 
-Registration, password + passwordless sign-in, token refresh, 2FA and verification.
+Account registration, password + passwordless sign-in, 2FA login and token refresh.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `register(body?, opts?)` | `POST /api/v1/auth/register` | Register a new user with email + password. |
-| `login(body?, opts?)` | `POST /api/v1/auth/login` | Sign in with email + password; returns the JWT pair (or a 2FA challenge). |
-| `loginVerify2fa(body?, opts?)` | `POST /api/v1/auth/2fa-verify` | Complete a login that returned a 2FA challenge. |
-| `refresh(body?, opts?)` | `POST /api/v1/auth/refresh` | Exchange a refresh token for a fresh access/refresh pair. |
+| `register(body?, opts?)` | `POST /api/v1/auth/register` | Register an account; returns the user plus an accessToken/refreshToken pair. |
+| `login(body?, opts?)` | `POST /api/v1/auth/login` | Log in with email + password; returns a JWT pair (or a 2FA challenge). |
+| `loginVerify2fa(body?, opts?)` | `POST /api/v1/auth/2fa-verify` | Complete a 2FA login challenge; returns the JWT pair. |
+| `requestToken(body?, opts?)` | `POST /api/v1/auth/token/request` | Passwordless: email a buyer a 6-digit login code. |
+| `exchangeToken(body?, opts?)` | `POST /api/v1/auth/token/exchange` | Passwordless: exchange email + 6-digit code for a JWT pair. |
+| `refresh(body?, opts?)` | `POST /api/v1/auth/refresh` | Refresh an expired access token (rotates the refresh token). |
 | `logout(body?, opts?)` | `POST /api/v1/auth/logout` | Revoke a refresh token. |
-| `forgotPassword(body?, opts?)` | `POST /api/v1/auth/forgot-password` | Email a password-reset link. |
-| `resetPassword(body?, opts?)` | `POST /api/v1/auth/reset-password` | Set a new password using a reset token. |
-| `requestToken(body?, opts?)` | `POST /api/v1/auth/token/request` | Passwordless: email a 6-digit login code. |
-| `exchangeToken(body?, opts?)` | `POST /api/v1/auth/token/exchange` | Passwordless: swap an emailed code for the JWT pair. |
-| `verifyOtp(body?, opts?)` | `POST /api/v1/auth/verify-otp` | Verify a one-time passcode. |
-| `verifyEmail(body?, opts?)` | `POST /api/v1/auth/verify-email` | Confirm an email address from a verification token. |
-| `verifyPhone(body?, opts?)` | `POST /api/v1/auth/verify-phone` | Confirm a phone number from an SMS code. |
-| `loginOauth(body?, opts?)` | `POST /api/v1/auth/login/oauth` | Sign in with a third-party OAuth identity token. |
-| `enable2fa(body?, opts?)` | `POST /api/v1/auth/2fa/enable` | Begin enrolling TOTP two-factor auth. |
-| `verify2fa(body?, opts?)` | `POST /api/v1/auth/2fa/verify` | Confirm a TOTP code to finish 2FA enrollment. |
-
-### `client.users` Users (Buyer)
-
-The authenticated account: profile, wallet, tickets, orders, refunds, reports, messaging and notifications.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `me(query?, opts?)` | `GET /api/v1/users/me` | Current user profile. |
-| `updateMe(body?, opts?)` | `PUT /api/v1/users/me` | Update the current user profile. |
-| `orders(query?, opts?)` | `GET /api/v1/users/me/orders` | List the buyer's orders. |
-| `tickets(query?, opts?)` | `GET /api/v1/users/me/tickets` | List the buyer's tickets across all organizers. |
-| `deleteAccount(body?, opts?)` | `DELETE /api/v1/users/me` | Close the account. |
-| `changePassword(body?, opts?)` | `POST /api/v1/users/me/password` | Change the account password. |
-| `activity(query?, opts?)` | `GET /api/v1/users/me/activity` | Recent account activity. |
-| `loginInfo(query?, opts?)` | `GET /api/v1/users/me/login-info` | Last-login metadata. |
-| `twofaStatus(query?, opts?)` | `GET /api/v1/users/me/2fa/status` | Whether 2FA is enabled. |
-| `twofaSetup(body?, opts?)` | `POST /api/v1/users/me/2fa/setup` | Start 2FA setup (returns the TOTP secret/QR). |
-| `twofaEnable(body?, opts?)` | `POST /api/v1/users/me/2fa/enable` | Enable 2FA after verifying a code. |
-| `twofaDisable(body?, opts?)` | `POST /api/v1/users/me/2fa/disable` | Disable 2FA. |
-| `createRefund(body?, opts?)` | `POST /api/v1/users/me/refunds` | Submit a refund request for a ticket. |
-| `refunds(query?, opts?)` | `GET /api/v1/users/me/refunds` | List the buyer's refund requests. |
-| `withdrawRefund(id, body?, opts?)` | `POST /api/v1/users/me/refunds/:id/withdraw` | Withdraw a pending refund request. |
-| `createReport(body?, opts?)` | `POST /api/v1/users/me/reports` | File a report against an event or organizer. |
-| `reports(query?, opts?)` | `GET /api/v1/users/me/reports` | List the buyer's filed reports. |
-| `messages(query?, opts?)` | `GET /api/v1/users/me/messages` | Message threads with organizers. |
-| `messageThread(threadId, query?, opts?)` | `GET /api/v1/users/me/messages/:threadId` | A single message thread. |
-| `sendTicketMessage(ticketId, body?, opts?)` | `POST /api/v1/users/me/tickets/:ticketId/message` | Message the organizer of a ticket. |
-| `notifications(query?, opts?)` | `GET /api/v1/users/me/notifications` | In-app notifications. |
-| `notificationsUnreadCount(query?, opts?)` | `GET /api/v1/users/me/notifications/unread-count` | Count of unread notifications. |
-| `markNotificationsRead(body?, opts?)` | `POST /api/v1/users/me/notifications/read` | Mark notifications as read. |
-| `updateAvatar(body?, opts?)` | `PUT /api/v1/users/me/avatar` | Update the account avatar. |
-| `updateNotificationSettings(body?, opts?)` | `PUT /api/v1/users/me/notifications/settings` | Update notification preferences. |
-
-### `client.savedSearches` Saved searches
-
-The buyer's saved discovery searches.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `list(query?, opts?)` | `GET /api/v1/users/me/saved-searches` | List saved searches. |
-| `create(body?, opts?)` | `POST /api/v1/users/me/saved-searches` | Save a search. |
-| `delete(id, body?, opts?)` | `DELETE /api/v1/users/me/saved-searches/:id` | Delete a saved search. |
-
-### `client.dataExport` Data export
-
-GDPR-style export of the account's data.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `get(query?, opts?)` | `GET /api/v1/users/me/export` | Export all of the account's data. |
 
 ### `client.events` Events (Public)
 
-Public event discovery rails and per-event read panels.
+Public event discovery and read, plus external ticket issuance.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `list(query?, opts?)` | `GET /api/v1/events` | List / search public events (cursor-paginated). |
-| `trending(query?, opts?)` | `GET /api/v1/events/trending` | Trending events. |
-| `categories(query?, opts?)` | `GET /api/v1/events/categories` | Event categories with counts. |
-| `nearby(query?, opts?)` | `GET /api/v1/events/nearby` | Events near a lat/lng or city. |
-| `newThisWeek(query?, opts?)` | `GET /api/v1/events/new-this-week` | Recently published events. |
-| `endingSoon(query?, opts?)` | `GET /api/v1/events/ending-soon` | Events with sales ending soon. |
-| `free(query?, opts?)` | `GET /api/v1/events/free` | Free events. |
-| `recommended(query?, opts?)` | `GET /api/v1/events/recommended` | Personalized recommendations. |
-| `schedule(id, query?, opts?)` | `GET /api/v1/events/:id/schedule` | An event's session schedule. |
-| `organizer(id, query?, opts?)` | `GET /api/v1/events/:id/organizer` | Public organizer profile for an event. |
-| `faq(id, query?, opts?)` | `GET /api/v1/events/:id/faq` | An event's FAQ. |
-| `related(id, query?, opts?)` | `GET /api/v1/events/:id/related` | Related events. |
-| `expressInterest(id, body?, opts?)` | `POST /api/v1/events/:id/interest` | Register interest in an event. |
-| `issue(eventId, body?, opts?)` | `POST /api/v1/events/:eventId/issue` | Externally issue a ticket for an event (integrator mode). |
-| `get(slug, query?, opts?)` | `GET /api/v1/events/:slug` | Get a public event by slug. |
-| `tickets(id, query?, opts?)` | `GET /api/v1/events/:id/tickets` | List an event's purchasable ticket types. |
-
-### `client.tickets` Tickets
-
-Ticket QR/PDF, peer-to-peer transfers, promo validation and wallet passes.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `validatePromo(body?, opts?)` | `POST /api/v1/tickets/promo/validate` | Validate a promo code against a cart. |
-| `qr(id, query?, opts?)` | `GET /api/v1/tickets/:id/qr` | Current rotating QR payload for a ticket (JSON). |
-| `pdf(id, query?, opts?) → BinaryResponse` | `GET /api/v1/tickets/:id/pdf` | Ticket PDF (application/pdf bytes). |
-| `transfer(id, body?, opts?)` | `POST /api/v1/tickets/:id/transfer` | Initiate a peer-to-peer transfer; the recipient gets a claim link. |
-| `revokeTransfer(transferId, body?, opts?)` | `POST /api/v1/tickets/transfers/:transferId/revoke` | Revoke a still-pending transfer (initiator only). |
-| `getTransfer(token, query?, opts?)` | `GET /api/v1/tickets/transfers/claim/:token` | Inspect a pending transfer by claim token. |
-| `claimTransfer(token, body?, opts?)` | `POST /api/v1/tickets/transfers/claim/:token` | Claim a transfer; rewrites the ticket holder to the recipient. |
-| `walletPass(id, query?, opts?)` | `GET /api/v1/tickets/:id/wallet-pass` | Google/Apple wallet 'Save to Wallet' link (JSON). |
-| `listByEvent(eventId, query?, opts?)` | `GET /api/v1/tickets/:eventId` | List ticket types for an event (legacy /ticket-types mount). |
-
-### `client.orders` Orders
-
-Carted checkout: create, pay, cancel, invoice.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `create(body?, opts?)` | `POST /api/v1/orders` | Create an order (reserves inventory). |
-| `get(id, query?, opts?)` | `GET /api/v1/orders/:id` | Order detail. |
-| `cancel(id, body?, opts?)` | `POST /api/v1/orders/:id/cancel` | Cancel an order and release its hold. |
-| `pay(id, body?, opts?)` | `POST /api/v1/orders/:id/pay` | Initiate payment for an order (nowpayments \| paystack \| flutterwave). |
-| `invoice(id, query?, opts?) → BinaryResponse` | `GET /api/v1/orders/:id/invoice` | Order receipt PDF (application/pdf bytes). |
-
-### `client.payments` Payments
-
-Payment intent creation, verification, method discovery, and inbound provider webhooks.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `verify(body?, opts?)` | `POST /api/v1/payments/verify` | Confirm a charge with the provider and complete the order (idempotent). |
-| `get(orderId, query?, opts?)` | `GET /api/v1/payments/:orderId` | Payment status for an order. |
-| `initiate(body?, opts?)` | `POST /api/v1/payments/initiate` | Create a payment intent. |
-| `methods(query?, opts?)` | `GET /api/v1/payments/methods` | Available payment methods for a currency. |
-| `cryptoCurrencies(query?, opts?)` | `GET /api/v1/payments/crypto/currencies` | Supported crypto currencies (NOWPayments). |
-| `webhookNowpayments(body?, opts?)` | `POST /api/v1/payments/webhook/nowpayments` | Inbound NOWPayments webhook (provider callback; not for client use). |
-| `webhookPaystack(body?, opts?)` | `POST /api/v1/payments/webhook/paystack` | Inbound Paystack webhook (provider callback; not for client use). |
-| `webhookFlutterwave(body?, opts?)` | `POST /api/v1/payments/webhook/flutterwave` | Inbound Flutterwave webhook (provider callback; not for client use). |
-
-### `client.checkin` Check-in
-
-Gate scanning, offline manifests, batch sync, live stats and CSV export.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `scan(body?, opts?)` | `POST /api/v1/checkin/scan` | Validate a QR / short-code ticket at a gate. |
-| `batch(body?, opts?)` | `POST /api/v1/checkin/batch` | Flush a queue of scans captured offline. |
-| `manual(id, body?, opts?)` | `POST /api/v1/checkin/event/:id/manual` | Manually check in an attendee. |
-| `manifest(id, query?, opts?)` | `GET /api/v1/checkin/event/:id/manifest` | Offline manifest (ticket hashes + statuses); pass ?since for a delta. |
-| `stats(id, query?, opts?)` | `GET /api/v1/checkin/event/:id/stats` | Live check-in stats snapshot. |
-| `registerDevice(body?, opts?)` | `POST /api/v1/checkin/device/register` | Register a scanning device. |
-| `liveUrl(id, query?)` | `GET /api/v1/checkin/event/:id/live` | Server-Sent Events stream of live check-in stats. |
-| `gate(id, gate, query?, opts?)` | `GET /api/v1/checkin/event/:id/gate/:gate` | Per-gate check-in stats. |
-| `export(id, query?, opts?) → BinaryResponse` | `GET /api/v1/checkin/event/:id/export` | Check-in log CSV (text/csv bytes). |
-
-### `client.scan` Scanner-token check-in
-
-Passwordless gate scanning using a short-lived scanner token (the /scan kiosk surface).
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `exchange(body?, opts?)` | `POST /api/v1/checkin-token/exchange` | Exchange a scanner token for a scoped session. |
-| `session(query?, opts?)` | `GET /api/v1/checkin-token/me` | Current scanner session (event + gate context). |
-| `scan(body?, opts?)` | `POST /api/v1/checkin-token/scan` | Validate a ticket with the scanner session. |
-| `manifest(query?, opts?)` | `GET /api/v1/checkin-token/manifest` | Offline manifest for the scanner session. |
-| `batch(body?, opts?)` | `POST /api/v1/checkin-token/batch` | Flush offline scans for the scanner session. |
-
-### `client.search` Search
-
-Full-text + faceted event search.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `query(query?, opts?)` | `GET /api/v1/search` | Full-text + faceted search. |
-| `suggest(query?, opts?)` | `GET /api/v1/search/suggest` | Type-ahead suggestions. |
-| `trending(query?, opts?)` | `GET /api/v1/search/trending` | Trending search terms. |
-| `popular(city, query?, opts?)` | `GET /api/v1/search/popular/:city` | Popular searches in a city. |
-
-### `client.media` Media
-
-Image/asset uploads and the stable /media/:id resolver.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `upload(body?, opts?)` | `POST /api/v1/media/upload` | Upload an image/asset (multipart/form-data). |
+| `list(query?, opts?)` | `GET /api/v1/events` | List and search published public events (cursor-paginated). |
+| `get(slug, query?, opts?)` | `GET /api/v1/events/:slug` | Event detail by slug (organizer info, schedule, active ticket types). |
+| `tickets(id, query?, opts?)` | `GET /api/v1/events/:id/tickets` | List an event's ticket types with live availability. |
+| `issue(eventId, body?, opts?)` | `POST /api/v1/events/:eventId/issue` | Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets). |
 
 ### `client.organizer` Organizer
 
-Authenticated organizer surface: organizations, members, events, ticket types, schedules, sections, promo codes, attendees, payouts, refunds, reports and messaging.
+Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `setup(body?, opts?)` | `POST /api/v1/organizer/setup` | Bootstrap an organizer account + first organization. |
-| `me(query?, opts?)` | `GET /api/v1/organizer/me` | Current organizer context (orgs + memberships). |
-| `createOrganization(body?, opts?)` | `POST /api/v1/organizer/organizations` | Create an organization. |
-| `getOrganization(orgId, query?, opts?)` | `GET /api/v1/organizer/organizations/:orgId` | Organization detail. |
-| `updateOrganization(orgId, body?, opts?)` | `PUT /api/v1/organizer/organizations/:orgId` | Update an organization. |
-| `setOrganizationStatus(orgId, body?, opts?)` | `PUT /api/v1/organizer/organizations/:orgId/status` | Change an organization's status. |
-| `members(orgId, query?, opts?)` | `GET /api/v1/organizer/organizations/:orgId/members` | List organization members. |
-| `invite(orgId, body?, opts?)` | `POST /api/v1/organizer/organizations/:orgId/invites` | Invite a member. |
-| `resendInvite(orgId, memberId, body?, opts?)` | `POST /api/v1/organizer/organizations/:orgId/invites/:memberId/resend` | Resend a member invite. |
-| `removeMember(orgId, memberId, body?, opts?)` | `DELETE /api/v1/organizer/organizations/:orgId/members/:memberId` | Remove a member. |
-| `events(query?, opts?)` | `GET /api/v1/organizer/events` | List the organizer's events. |
+| `getOrganization(id, query?, opts?)` | `GET /api/v1/organizer/organizations/:id` | Get organization details and per-currency wallet balances. |
 | `createEvent(body?, opts?)` | `POST /api/v1/organizer/events` | Create a draft event. |
-| `getEvent(id, query?, opts?)` | `GET /api/v1/organizer/events/:id` | Organizer event detail. |
-| `updateEvent(id, body?, opts?)` | `PUT /api/v1/organizer/events/:id` | Update an event. |
-| `setEventStatus(id, body?, opts?)` | `PUT /api/v1/organizer/events/:id/status` | Change an event's status. |
+| `updateEvent(id, body?, opts?)` | `PUT /api/v1/organizer/events/:id` | Partial-update an event. |
 | `publishEvent(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/publish` | Publish a draft event. |
 | `unpublishEvent(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/unpublish` | Unpublish a published event back to draft. |
-| `deleteEvent(id, body?, opts?)` | `DELETE /api/v1/organizer/events/:id` | Cancel/delete an event. |
-| `tickets(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/tickets` | List an event's ticket types. |
+| `deleteEvent(id, body?, opts?)` | `DELETE /api/v1/organizer/events/:id` | Cancel an event. |
 | `createTicket(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/tickets` | Create a ticket type. |
-| `updateTicket(id, tid, body?, opts?)` | `PUT /api/v1/organizer/events/:id/tickets/:tid` | Update a ticket type. |
-| `deleteTicket(id, tid, body?, opts?)` | `DELETE /api/v1/organizer/events/:id/tickets/:tid` | Delete a ticket type. |
-| `schedule(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/schedule` | List schedule sessions. |
+| `schedule(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/schedule` | List schedule sessions (running order). |
 | `createSchedule(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/schedule` | Add a schedule session. |
-| `updateSchedule(id, sid, body?, opts?)` | `PUT /api/v1/organizer/events/:id/schedule/:sid` | Update a schedule session. |
-| `deleteSchedule(id, sid, body?, opts?)` | `DELETE /api/v1/organizer/events/:id/schedule/:sid` | Delete a schedule session. |
-| `sections(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/sections` | List seating/venue sections. |
-| `createSection(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/sections` | Add a section. |
-| `updateSection(id, sid, body?, opts?)` | `PUT /api/v1/organizer/events/:id/sections/:sid` | Update a section. |
-| `deleteSection(id, sid, body?, opts?)` | `DELETE /api/v1/organizer/events/:id/sections/:sid` | Delete a section. |
-| `promoCodes(query?, opts?)` | `GET /api/v1/organizer/promo-codes` | List promo codes. |
+| `updateSchedule(id, sessionId, body?, opts?)` | `PUT /api/v1/organizer/events/:id/schedule/:sessionId` | Update a schedule session. |
+| `deleteSchedule(id, sessionId, body?, opts?)` | `DELETE /api/v1/organizer/events/:id/schedule/:sessionId` | Delete a schedule session. |
+| `sections(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/sections` | List seating/capacity sections. |
+| `createSection(id, body?, opts?)` | `POST /api/v1/organizer/events/:id/sections` | Add a seating section. |
+| `updateSection(id, sectionId, body?, opts?)` | `PUT /api/v1/organizer/events/:id/sections/:sectionId` | Update a seating section. |
+| `deleteSection(id, sectionId, body?, opts?)` | `DELETE /api/v1/organizer/events/:id/sections/:sectionId` | Delete a seating section. |
+| `promoCodes(query?, opts?)` | `GET /api/v1/organizer/promo-codes` | List promo codes (optionally filtered by event). |
 | `createPromoCode(body?, opts?)` | `POST /api/v1/organizer/promo-codes` | Create a promo code. |
 | `updatePromoCode(id, body?, opts?)` | `PUT /api/v1/organizer/promo-codes/:id` | Update a promo code. |
-| `deletePromoCode(id, body?, opts?)` | `DELETE /api/v1/organizer/promo-codes/:id` | Delete a promo code. |
-| `eventAnalytics(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/analytics` | Sales/analytics for an event. |
-| `eventAttendees(id, query?, opts?)` | `GET /api/v1/organizer/events/:id/attendees` | Attendee CRM list for an event. |
-| `eventExport(id, query?, opts?) → BinaryResponse` | `GET /api/v1/organizer/events/:id/export` | Attendee export CSV (text/csv bytes). |
-| `payouts(query?, opts?)` | `GET /api/v1/organizer/payouts` | List payouts. |
-| `payout(id, query?, opts?)` | `GET /api/v1/organizer/payouts/:id` | Payout detail. |
-| `requestPayout(body?, opts?)` | `POST /api/v1/organizer/payouts/request` | Request a payout. |
-| `updatePayoutSettings(body?, opts?)` | `PUT /api/v1/organizer/payout-settings` | Update payout settings. |
-| `refunds(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/refunds` | List refund requests for an org. |
-| `decideRefund(id, body?, opts?)` | `POST /api/v1/organizer/refunds/:id/decide` | Approve or deny a refund request. |
-| `reports(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/reports` | List reports filed against an org (read-only). |
-| `resolveReport(id, body?, opts?)` | `POST /api/v1/organizer/reports/:id/resolve` | Resolve a report (admins only; organizers receive 403). |
-| `messages(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/messages` | Org-wide buyer message threads. |
-| `overview(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/overview` | Org dashboard overview. |
-| `referral(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/referral` | Referral program summary + commissions. |
-| `notifications(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/notifications` | Org notifications. |
-| `fundWallet(orgId, body?, opts?)` | `POST /api/v1/organizer/wallets/org/:orgId/fund` | Top up the org wallet (returns a payment intent). |
-| `fundWalletStatus(orgId, orderId, query?, opts?)` | `GET /api/v1/organizer/wallets/org/:orgId/fund/:orderId` | Poll a wallet top-up payment. |
-| `payoutDetails(orgId, query?, opts?)` | `GET /api/v1/organizer/orgs/:orgId/payout-details` | Stored payout destinations. |
-| `updatePayoutDetails(orgId, currency, body?, opts?)` | `PUT /api/v1/organizer/orgs/:orgId/payout-details/:currency` | Set payout details for a currency. |
-| `ticketMessage(ticketId, body?, opts?)` | `POST /api/v1/organizer/tickets/:ticketId/message` | Reply to a buyer on a ticket thread. |
-| `messageThread(threadId, query?, opts?)` | `GET /api/v1/organizer/messages/:threadId` | A single org message thread. |
+| `deletePromoCode(id, body?, opts?)` | `DELETE /api/v1/organizer/promo-codes/:id` | Delete or disable a promo code. |
 
-### `client.wallets` Wallets
+### `client.eventCustomization` Event page customization
 
-Organization wallet balances and ledger.
+Per-event public-page theming and the “Good to know” FAQ.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `list(query?, opts?)` | `GET /api/v1/organizer/wallets` | List wallets the caller can see. |
-| `get(orgId, query?, opts?)` | `GET /api/v1/organizer/wallets/org/:orgId` | An org's wallet balances (per currency). |
-| `bootstrap(orgId, body?, opts?)` | `POST /api/v1/organizer/wallets/org/:orgId/bootstrap` | Provision an org's wallet. |
-| `transactions(orgId, query?, opts?)` | `GET /api/v1/organizer/wallets/org/:orgId/transactions` | Wallet ledger transactions. |
+| `get(id, query?, opts?)` | `GET /api/v1/organizer/event-customization/:id` | Get an event's page customization (theme, layout, FAQ, SEO). |
+| `update(id, body?, opts?)` | `PUT /api/v1/organizer/event-customization/:id` | Update an event's page customization (incl. the FAQ list). |
 
-### `client.scannerTokens` Scanner tokens
+### `client.tickets` Tickets
 
-Manage short-lived gate-scanner tokens for staff devices.
+Checkout-time ticket helpers.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `list(orgId, query?, opts?)` | `GET /api/v1/organizer/scanner-tokens/org/:orgId` | List scanner tokens. |
-| `create(orgId, body?, opts?)` | `POST /api/v1/organizer/scanner-tokens/org/:orgId` | Mint a scanner token. |
-| `update(orgId, tokenId, body?, opts?)` | `PUT /api/v1/organizer/scanner-tokens/org/:orgId/:tokenId` | Update a scanner token. |
-| `delete(orgId, tokenId, body?, opts?)` | `DELETE /api/v1/organizer/scanner-tokens/org/:orgId/:tokenId` | Revoke a scanner token. |
-| `reissue(orgId, tokenId, body?, opts?)` | `POST /api/v1/organizer/scanner-tokens/org/:orgId/:tokenId/reissue` | Reissue a scanner token's secret. |
-| `metrics(orgId, tokenId, query?, opts?)` | `GET /api/v1/organizer/scanner-tokens/org/:orgId/:tokenId/metrics` | Usage metrics for a scanner token. |
+| `validatePromo(body?, opts?)` | `POST /api/v1/tickets/promo/validate` | Validate a promo code against a cart (read-only preview, does not consume a use). |
 
-### `client.integrations` Integrations
+### `client.orders` Orders
 
-API keys, MCP tokens, and integration usage metrics.
+Carted checkout: create, read, pay, cancel.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `metrics(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/metrics` | Integration usage metrics. |
-| `apiCalls(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/api-calls` | Recent API call log. |
-| `mcpCalls(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/mcp-calls` | Recent MCP tool-call log. |
-| `listApiKeys(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/api-keys` | List API keys. |
-| `createApiKey(orgId, body?, opts?)` | `POST /api/v1/organizer/integrations/org/:orgId/api-keys` | Mint an API key (plaintext returned once). |
-| `updateApiKey(orgId, keyId, body?, opts?)` | `PUT /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId` | Update an API key (scopes, status, allowlist). |
-| `rotateApiKey(orgId, keyId, body?, opts?)` | `POST /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId/rotate` | Rotate an API key's secret. |
-| `deleteApiKey(orgId, keyId, body?, opts?)` | `DELETE /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId` | Revoke an API key. |
-| `listMcpTokens(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/mcp-tokens` | List MCP tokens. |
-| `createMcpToken(orgId, body?, opts?)` | `POST /api/v1/organizer/integrations/org/:orgId/mcp-tokens` | Mint an MCP token. |
-| `updateMcpToken(orgId, tokenId, body?, opts?)` | `PUT /api/v1/organizer/integrations/org/:orgId/mcp-tokens/:tokenId` | Update an MCP token. |
-| `deleteMcpToken(orgId, tokenId, body?, opts?)` | `DELETE /api/v1/organizer/integrations/org/:orgId/mcp-tokens/:tokenId` | Revoke an MCP token. |
+| `create(body?, opts?)` | `POST /api/v1/orders` | Create an order (guest checkout needs only name + email). |
+| `get(id, query?, opts?)` | `GET /api/v1/orders/:id` | Get an order (pass ?token for guest reads). |
+| `pay(id, body?, opts?)` | `POST /api/v1/orders/:id/pay` | Initiate payment (provider: nowpayments \| paystack \| flutterwave). |
+| `cancel(id, body?, opts?)` | `POST /api/v1/orders/:id/cancel` | Cancel an unpaid order and release held inventory. |
 
-### `client.eventCustomization` Event customization
+### `client.payments` Payments
 
-Per-event white-label theming.
+Verify charges, read payment status, list crypto coins.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `get(eventId, query?, opts?)` | `GET /api/v1/organizer/event-customization/:eventId` | Get an event's customization. |
-| `update(eventId, body?, opts?)` | `PUT /api/v1/organizer/event-customization/:eventId` | Update an event's customization. |
+| `verify(body?, opts?)` | `POST /api/v1/payments/verify` | Actively verify a payment with the provider and issue tickets (idempotent, poll-safe). |
+| `get(orderId, query?, opts?)` | `GET /api/v1/payments/:orderId` | Read payment/order status and attempts (read-only). |
+| `cryptoCurrencies(query?, opts?)` | `GET /api/v1/payments/crypto/currencies` | List supported NOWPayments crypto coins (for the payCurrency value). |
 
-### `client.growth` Growth
+### `client.checkin` Check-in
+
+Gate scanning, offline manifests + sync, live stats.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `scan(body?, opts?)` | `POST /api/v1/checkin/scan` | Validate a QR, barcode or 6-character door code at the gate. |
+| `manual(id, body?, opts?)` | `POST /api/v1/checkin/event/:id/manual` | Manually check in a typed ticket code. |
+| `manifest(id, query?, opts?)` | `GET /api/v1/checkin/event/:id/manifest` | Hashed guest-list manifest for offline scanning (pass ?since for a delta). |
+| `batch(body?, opts?)` | `POST /api/v1/checkin/batch` | Sync up to 500 queued offline scans. |
+| `stats(id, query?, opts?)` | `GET /api/v1/checkin/event/:id/stats` | Check-in totals, capacity %, entry rate and per-gate breakdown. |
+| `gate(id, gate, query?, opts?)` | `GET /api/v1/checkin/event/:id/gate/:gate` | Per-gate check-in stats slice. |
+| `liveUrl(id, query?)` | `GET /api/v1/checkin/event/:id/live` | Server-Sent Events stream a stats snapshot every 2 seconds. |
+
+### `client.community` Community
+
+Verified-attendee reviews, organizer follows/subscribers and event waitlists.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `submitReview(body?, opts?)` | `POST /api/v1/community/reviews` | Review an event (checked-in ticket holders only; ticketCode + email prove attendance). |
+| `follow(orgId, body?, opts?)` | `POST /api/v1/community/orgs/:orgId/follow` | Follow an organizer (subscribe to new-event announcements). |
+| `followers(orgId, query?, opts?)` | `GET /api/v1/community/orgs/:orgId/followers` | List an organizer's subscribers (organizer auth). |
+| `removeFollower(orgId, followerId, body?, opts?)` | `DELETE /api/v1/community/orgs/:orgId/followers/:followerId` | Remove a subscriber (organizer auth). |
+| `joinWaitlist(eventId, body?, opts?)` | `POST /api/v1/community/events/:eventId/waitlist` | Join an event waitlist (offers fire on cancellations). |
+
+### `client.growth` Growth (Organizer)
 
 Comp tickets, CSV import, broadcasts and attendee tags.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `mintComps(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/comps` | Issue complimentary tickets. |
-| `importCompsCsv(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/comps/import-csv` | Bulk-issue comps from CSV. |
-| `listComps(eventId, query?, opts?)` | `GET /api/v1/organizer/growth/events/:eventId/comps` | List issued comps. |
-| `resendComp(eventId, ticketId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/comps/:ticketId/resend` | Resend a comp ticket email. |
-| `broadcastEvent(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/broadcast` | Broadcast to an event's attendees. |
-| `broadcastOrg(orgId, body?, opts?)` | `POST /api/v1/organizer/growth/orgs/:orgId/broadcast` | Broadcast to an org's followers/subscribers. |
-| `listBroadcasts(orgId, query?, opts?)` | `GET /api/v1/organizer/growth/orgs/:orgId/broadcasts` | List sent broadcasts. |
-| `addTags(body?, opts?)` | `POST /api/v1/organizer/growth/tags` | Tag attendees (body: orgId, ticketIds, tag). |
-| `removeTag(body?, opts?)` | `DELETE /api/v1/organizer/growth/tags` | Remove a tag (body: orgId, ticketId, tag). |
-| `listTags(orgId, query?, opts?)` | `GET /api/v1/organizer/growth/orgs/:orgId/tags` | List tags for an org. |
-| `tagAttendees(orgId, tag, query?, opts?)` | `GET /api/v1/organizer/growth/orgs/:orgId/tags/:tag/attendees` | List attendees with a given tag. |
+| `mintComps(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/comps` | Bulk-mint and email complimentary tickets. |
+| `importCompsCsv(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/comps/import-csv` | Import attendees (comp tickets) from CSV. |
+| `broadcastEvent(eventId, body?, opts?)` | `POST /api/v1/organizer/growth/events/:eventId/broadcast` | Email a broadcast to an event's attendees (replies thread to the organizer inbox). |
+| `addTags(body?, opts?)` | `POST /api/v1/organizer/growth/tags` | Tag attendees (additive; powers broadcast filters and CRM segments). |
+| `removeTag(body?, opts?)` | `DELETE /api/v1/organizer/growth/tags` | Remove an attendee tag. |
 
-### `client.publicEvents` Public events (vanity)
+### `client.users` Buyers
 
-Public org/event read endpoints used by hosted pages and white-label sites.
+The authenticated buyer: profile, ticket wallet, data export, refunds, reports and organizer messaging.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `getBySlug(slug, query?, opts?)` | `GET /api/v1/public/events/:slug` | Public event by slug. |
-| `orgEvents(orgId, query?, opts?)` | `GET /api/v1/public/events/orgs/by/:orgId` | An organization's public events. |
-| `getByOrgEvent(orgId, eventId, query?, opts?)` | `GET /api/v1/public/events/by/:orgId/:eventId` | Public event by org + event id. |
-| `getById(eventId, query?, opts?)` | `GET /api/v1/public/events/by-id/:eventId` | Public event by id. |
-| `preview(eventId, query?, opts?)` | `GET /api/v1/public/events/preview/:eventId` | Draft event preview (token-gated). |
+| `me(query?, opts?)` | `GET /api/v1/users/me` | Current buyer profile. |
+| `tickets(query?, opts?)` | `GET /api/v1/users/me/tickets` | The buyer's ticket wallet (cursor-paginated). |
+| `export(query?, opts?)` | `GET /api/v1/users/me/export` | GDPR data export one JSON download of everything on the account. |
+| `createRefund(body?, opts?)` | `POST /api/v1/users/me/refunds` | Request a refund for a ticket. |
+| `createReport(body?, opts?)` | `POST /api/v1/users/me/reports` | File a report against an event or organizer. |
+| `messages(query?, opts?)` | `GET /api/v1/users/me/messages` | The buyer's message threads with organizers. |
+| `sendTicketMessage(ticketId, body?, opts?)` | `POST /api/v1/users/me/tickets/:ticketId/message` | Message the organizer about a ticket (rate-limited). |
 
-### `client.site` Public site
+### `client.integrations` API keys
 
-Sitemap, newsletter signup and platform status.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `sitemap(query?, opts?) → BinaryResponse` | `GET /api/v1/public/sitemap.xml` | Sitemap XML (application/xml bytes). |
-| `newsletterStart(body?, opts?)` | `POST /api/v1/public/newsletter/start` | Begin newsletter double-opt-in. |
-| `newsletterConfirm(body?, opts?)` | `POST /api/v1/public/newsletter` | Confirm a newsletter subscription. |
-| `status(query?, opts?)` | `GET /api/v1/public/status` | Platform status + incidents. |
-
-### `client.community` Community
-
-Verified-attendee reviews, organizer follows and event waitlists.
+Manage your organization's own API keys (organizer owner/admin auth).
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `submitReview(body?, opts?)` | `POST /api/v1/community/reviews` | Submit a verified-attendee review (ticketCode + email prove ownership). |
-| `orgReviews(orgId, query?, opts?)` | `GET /api/v1/community/orgs/:orgId/reviews` | Published reviews for an org. |
-| `eventReviews(eventId, query?, opts?)` | `GET /api/v1/community/events/:eventId/reviews` | Published reviews for an event. |
-| `follow(orgId, body?, opts?)` | `POST /api/v1/community/orgs/:orgId/follow` | Follow an organizer. |
-| `unfollow(token, query?, opts?)` | `GET /api/v1/community/unfollow/:token` | Unsubscribe via emailed token. |
-| `joinWaitlist(eventId, body?, opts?)` | `POST /api/v1/community/events/:eventId/waitlist` | Join an event waitlist. |
-| `acceptWaitlist(id, token, query?, opts?)` | `GET /api/v1/community/waitlist/accept/:id/:token` | Accept a waitlist offer via emailed token. |
-| `manageReviews(orgId, query?, opts?)` | `GET /api/v1/community/orgs/:orgId/reviews/manage` | Organizer view of all reviews (incl. pending). |
-| `replyReview(id, body?, opts?)` | `POST /api/v1/community/reviews/:id/reply` | Organizer reply to a review. |
-| `setReviewStatus(id, body?, opts?)` | `POST /api/v1/community/reviews/:id/status` | Publish/hide a review. |
-| `followers(orgId, query?, opts?)` | `GET /api/v1/community/orgs/:orgId/followers` | List an org's followers. |
-| `removeFollower(orgId, followerId, body?, opts?)` | `DELETE /api/v1/community/orgs/:orgId/followers/:followerId` | Remove a follower. |
-| `eventWaitlist(eventId, query?, opts?)` | `GET /api/v1/community/events/:eventId/waitlist` | List an event's waitlist. |
-| `offerWaitlist(eventId, body?, opts?)` | `POST /api/v1/community/events/:eventId/waitlist/offer` | Offer spots to waitlisted attendees. |
-
-### `client.track` Tracking
-
-Lightweight page-view tracking.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `view(body?, opts?)` | `POST /api/v1/track/view` | Record a page view. |
+| `createApiKey(orgId, body?, opts?)` | `POST /api/v1/organizer/integrations/org/:orgId/api-keys` | Create an API key (plaintext secret returned exactly once). |
+| `listApiKeys(orgId, query?, opts?)` | `GET /api/v1/organizer/integrations/org/:orgId/api-keys` | List API keys (prefixes and metadata only, never the secret). |
+| `updateApiKey(orgId, keyId, body?, opts?)` | `PUT /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId` | Update a key (rename, pause, re-scope). |
+| `rotateApiKey(orgId, keyId, body?, opts?)` | `POST /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId/rotate` | Rotate a key's secret (new secret returned once; old one invalidated). |
+| `deleteApiKey(orgId, keyId, body?, opts?)` | `DELETE /api/v1/organizer/integrations/org/:orgId/api-keys/:keyId` | Revoke an API key. |
 
 ### `client.webhooks` Webhooks
 
-Register webhook endpoints and inspect/replay deliveries. (Use client.webhooks.verify() to validate inbound signatures.)
+Register webhook endpoints, manage secrets, inspect and replay deliveries. (Use webhooks.verify() to validate inbound signatures.)
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `catalog(query?, opts?)` | `GET /api/v1/webhooks/catalog` | List subscribable event types. |
-| `list(query?, opts?)` | `GET /api/v1/webhooks` | List registered webhook endpoints. |
-| `create(body?, opts?)` | `POST /api/v1/webhooks` | Register a webhook endpoint. |
+| `create(body?, opts?)` | `POST /api/v1/webhooks` | Create a webhook endpoint (signing secret returned exactly once). |
+| `list(query?, opts?)` | `GET /api/v1/webhooks` | List webhook endpoints. |
 | `update(id, body?, opts?)` | `PUT /api/v1/webhooks/:id` | Update a webhook endpoint. |
-| `rotateSecret(id, body?, opts?)` | `POST /api/v1/webhooks/:id/rotate-secret` | Rotate a webhook signing secret. |
 | `delete(id, body?, opts?)` | `DELETE /api/v1/webhooks/:id` | Delete a webhook endpoint. |
+| `test(id, body?, opts?)` | `POST /api/v1/webhooks/:id/test` | Send a signed test event to the endpoint. |
+| `rotateSecret(id, body?, opts?)` | `POST /api/v1/webhooks/:id/rotate-secret` | Rotate the signing secret (new secret returned once). |
 | `deliveries(id, query?, opts?)` | `GET /api/v1/webhooks/:id/deliveries` | List delivery attempts for an endpoint. |
-| `test(id, body?, opts?)` | `POST /api/v1/webhooks/:id/test` | Send a test event to an endpoint. |
 | `replay(id, body?, opts?)` | `POST /api/v1/webhooks/deliveries/:id/replay` | Replay a past delivery. |
-
-### `client.whiteLabel` White-label
-
-Self-contained white-label surface: events, ticket types, customization, orders, tickets and check-in under one integration.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `me(query?, opts?)` | `GET /api/v1/white-label/me` | The integration's white-label context. |
-| `events(query?, opts?)` | `GET /api/v1/white-label/events` | List white-label events. |
-| `createEvent(body?, opts?)` | `POST /api/v1/white-label/events` | Create a white-label event. |
-| `getEvent(id, query?, opts?)` | `GET /api/v1/white-label/events/:id` | White-label event detail. |
-| `updateEvent(id, body?, opts?)` | `PUT /api/v1/white-label/events/:id` | Update a white-label event. |
-| `deleteEvent(id, body?, opts?)` | `DELETE /api/v1/white-label/events/:id` | Delete a white-label event. |
-| `ticketTypes(eventId, query?, opts?)` | `GET /api/v1/white-label/events/:eventId/ticket-types` | List ticket types. |
-| `createTicketType(eventId, body?, opts?)` | `POST /api/v1/white-label/events/:eventId/ticket-types` | Create a ticket type. |
-| `getCustomization(eventId, query?, opts?)` | `GET /api/v1/white-label/events/:eventId/customization` | Get event customization. |
-| `updateCustomization(eventId, body?, opts?)` | `PUT /api/v1/white-label/events/:eventId/customization` | Update event customization. |
-| `orders(query?, opts?)` | `GET /api/v1/white-label/orders` | List white-label orders. |
-| `tickets(query?, opts?)` | `GET /api/v1/white-label/tickets` | List white-label tickets. |
-| `checkinScan(body?, opts?)` | `POST /api/v1/white-label/checkin/scan` | Validate a ticket at a white-label gate. |
-| `checkinStats(eventId, query?, opts?)` | `GET /api/v1/white-label/checkin/stats/:eventId` | White-label check-in stats. |
-| `wallets(query?, opts?)` | `GET /api/v1/white-label/wallets` | White-label wallet balances. |
-
-### `client.support` Support
-
-Support tickets and threaded messages.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `list(query?, opts?)` | `GET /api/v1/support` | List support tickets. |
-| `create(body?, opts?)` | `POST /api/v1/support` | Open a support ticket. |
-| `get(id, query?, opts?)` | `GET /api/v1/support/:id` | Support ticket detail. |
-| `sendMessage(id, body?, opts?)` | `POST /api/v1/support/:id/messages` | Reply on a support ticket. |
-
-### `client.util` Utilities
-
-Helper endpoints.
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `resolveCoords(body?, opts?)` | `POST /api/v1/util/resolve-coords` | Resolve an address to coordinates. |
+| `catalog(query?, opts?)` | `GET /api/v1/webhooks/catalog` | List every subscribable event type (no auth). |
 
 <!-- END ENDPOINTS -->

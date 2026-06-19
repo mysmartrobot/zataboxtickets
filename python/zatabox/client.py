@@ -28,8 +28,7 @@ class Client(Transport):
         # Attach every generated namespace: self.events, self.orders, self.organizer, …
         for name, cls in resources.RESOURCES.items():
             setattr(self, name, cls(self))
-        # Hand-written extras layered onto the generated namespaces.
-        self.media.upload = self.upload
+        # Hand-written extra layered onto the generated webhooks namespace.
         self.webhooks.verify = self.verify_webhook
 
 

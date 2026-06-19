@@ -131,8 +131,13 @@ function genNode() {
 // TypeScript declarations for the generated namespaces.
 function genNodeTypes() {
   const T = [];
+  const hasBinary = manifest.groups.some((g) => g.endpoints.some((e) => e.kind === 'binary'));
   T.push(banner('//'));
-  T.push("import type { RequestOptions, BinaryResponse } from './index';");
+  T.push(
+    hasBinary
+      ? "import type { RequestOptions, BinaryResponse } from './index';"
+      : "import type { RequestOptions } from './index';"
+  );
   T.push('');
   const ifaces = [];
   for (const g of manifest.groups) {

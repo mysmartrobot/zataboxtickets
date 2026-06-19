@@ -11,81 +11,65 @@ import (
 // services bundles every resource namespace; embedded in Client.
 type services struct {
 	Auth *AuthService
-	Users *UsersService
-	SavedSearches *SavedSearchesService
-	DataExport *DataExportService
 	Events *EventsService
+	Organizer *OrganizerService
+	EventCustomization *EventCustomizationService
 	Tickets *TicketsService
 	Orders *OrdersService
 	Payments *PaymentsService
 	Checkin *CheckinService
-	Scan *ScanService
-	Search *SearchService
-	Media *MediaService
-	Organizer *OrganizerService
-	Wallets *WalletsService
-	ScannerTokens *ScannerTokensService
-	Integrations *IntegrationsService
-	EventCustomization *EventCustomizationService
-	Growth *GrowthService
-	PublicEvents *PublicEventsService
-	Site *SiteService
 	Community *CommunityService
-	Track *TrackService
+	Growth *GrowthService
+	Users *UsersService
+	Integrations *IntegrationsService
 	Webhooks *WebhooksService
-	WhiteLabel *WhiteLabelService
-	Support *SupportService
-	Util *UtilService
 }
 
 func (c *Client) initServices() {
 	c.Auth = &AuthService{c: c}
-	c.Users = &UsersService{c: c}
-	c.SavedSearches = &SavedSearchesService{c: c}
-	c.DataExport = &DataExportService{c: c}
 	c.Events = &EventsService{c: c}
+	c.Organizer = &OrganizerService{c: c}
+	c.EventCustomization = &EventCustomizationService{c: c}
 	c.Tickets = &TicketsService{c: c}
 	c.Orders = &OrdersService{c: c}
 	c.Payments = &PaymentsService{c: c}
 	c.Checkin = &CheckinService{c: c}
-	c.Scan = &ScanService{c: c}
-	c.Search = &SearchService{c: c}
-	c.Media = &MediaService{c: c}
-	c.Organizer = &OrganizerService{c: c}
-	c.Wallets = &WalletsService{c: c}
-	c.ScannerTokens = &ScannerTokensService{c: c}
-	c.Integrations = &IntegrationsService{c: c}
-	c.EventCustomization = &EventCustomizationService{c: c}
-	c.Growth = &GrowthService{c: c}
-	c.PublicEvents = &PublicEventsService{c: c}
-	c.Site = &SiteService{c: c}
 	c.Community = &CommunityService{c: c}
-	c.Track = &TrackService{c: c}
+	c.Growth = &GrowthService{c: c}
+	c.Users = &UsersService{c: c}
+	c.Integrations = &IntegrationsService{c: c}
 	c.Webhooks = &WebhooksService{c: c}
-	c.WhiteLabel = &WhiteLabelService{c: c}
-	c.Support = &SupportService{c: c}
-	c.Util = &UtilService{c: c}
 }
 
-// AuthService Auth: Registration, password + passwordless sign-in, token refresh, 2FA and verification.
+// AuthService Auth: Account registration, password + passwordless sign-in, 2FA login and token refresh.
 type AuthService struct{ c *Client }
 
-// Register Register a new user with email + password.
+// Register Register an account; returns the user plus an accessToken/refreshToken pair.
 func (s *AuthService) Register(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/auth/register", opts)
 }
 
-// Login Sign in with email + password; returns the JWT pair (or a 2FA challenge).
+// Login Log in with email + password; returns a JWT pair (or a 2FA challenge).
 func (s *AuthService) Login(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/auth/login", opts)
 }
 
-// LoginVerify2fa Complete a login that returned a 2FA challenge.
+// LoginVerify2fa Complete a 2FA login challenge; returns the JWT pair.
 func (s *AuthService) LoginVerify2fa(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/auth/2fa-verify", opts)
 }
 
-// Refresh Exchange a refresh token for a fresh access/refresh pair.
+// RequestToken Passwordless: email a buyer a 6-digit login code.
+func (s *AuthService) RequestToken(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/auth/token/request", opts)
+}
+
+// ExchangeToken Passwordless: exchange email + 6-digit code for a JWT pair.
+func (s *AuthService) ExchangeToken(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/auth/token/exchange", opts)
+}
+
+// Refresh Refresh an expired access token (rotates the refresh token).
 func (s *AuthService) Refresh(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/auth/refresh", opts)
 }
@@ -95,570 +79,35 @@ func (s *AuthService) Logout(ctx context.Context, opts ...RequestOption) (json.R
 	return s.c.do(ctx, "POST", "/api/v1/auth/logout", opts)
 }
 
-// ForgotPassword Email a password-reset link.
-func (s *AuthService) ForgotPassword(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/forgot-password", opts)
-}
-
-// ResetPassword Set a new password using a reset token.
-func (s *AuthService) ResetPassword(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/reset-password", opts)
-}
-
-// RequestToken Passwordless: email a 6-digit login code.
-func (s *AuthService) RequestToken(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/token/request", opts)
-}
-
-// ExchangeToken Passwordless: swap an emailed code for the JWT pair.
-func (s *AuthService) ExchangeToken(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/token/exchange", opts)
-}
-
-// VerifyOtp Verify a one-time passcode.
-func (s *AuthService) VerifyOtp(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/verify-otp", opts)
-}
-
-// VerifyEmail Confirm an email address from a verification token.
-func (s *AuthService) VerifyEmail(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/verify-email", opts)
-}
-
-// VerifyPhone Confirm a phone number from an SMS code.
-func (s *AuthService) VerifyPhone(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/verify-phone", opts)
-}
-
-// LoginOauth Sign in with a third-party OAuth identity token.
-func (s *AuthService) LoginOauth(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/login/oauth", opts)
-}
-
-// Enable2fa Begin enrolling TOTP two-factor auth.
-func (s *AuthService) Enable2fa(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/2fa/enable", opts)
-}
-
-// Verify2fa Confirm a TOTP code to finish 2FA enrollment.
-func (s *AuthService) Verify2fa(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/auth/2fa/verify", opts)
-}
-
-// UsersService Users (Buyer): The authenticated account: profile, wallet, tickets, orders, refunds, reports, messaging and notifications.
-type UsersService struct{ c *Client }
-
-// Me Current user profile.
-func (s *UsersService) Me(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me", opts)
-}
-
-// UpdateMe Update the current user profile.
-func (s *UsersService) UpdateMe(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/users/me", opts)
-}
-
-// Orders List the buyer's orders.
-func (s *UsersService) Orders(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/orders", opts)
-}
-
-// Tickets List the buyer's tickets across all organizers.
-func (s *UsersService) Tickets(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/tickets", opts)
-}
-
-// DeleteAccount Close the account.
-func (s *UsersService) DeleteAccount(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/users/me", opts)
-}
-
-// ChangePassword Change the account password.
-func (s *UsersService) ChangePassword(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/password", opts)
-}
-
-// Activity Recent account activity.
-func (s *UsersService) Activity(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/activity", opts)
-}
-
-// LoginInfo Last-login metadata.
-func (s *UsersService) LoginInfo(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/login-info", opts)
-}
-
-// TwofaStatus Whether 2FA is enabled.
-func (s *UsersService) TwofaStatus(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/2fa/status", opts)
-}
-
-// TwofaSetup Start 2FA setup (returns the TOTP secret/QR).
-func (s *UsersService) TwofaSetup(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/2fa/setup", opts)
-}
-
-// TwofaEnable Enable 2FA after verifying a code.
-func (s *UsersService) TwofaEnable(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/2fa/enable", opts)
-}
-
-// TwofaDisable Disable 2FA.
-func (s *UsersService) TwofaDisable(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/2fa/disable", opts)
-}
-
-// CreateRefund Submit a refund request for a ticket.
-func (s *UsersService) CreateRefund(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/refunds", opts)
-}
-
-// Refunds List the buyer's refund requests.
-func (s *UsersService) Refunds(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/refunds", opts)
-}
-
-// WithdrawRefund Withdraw a pending refund request.
-func (s *UsersService) WithdrawRefund(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/refunds/" + enc(id) + "/withdraw", opts)
-}
-
-// CreateReport File a report against an event or organizer.
-func (s *UsersService) CreateReport(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/reports", opts)
-}
-
-// Reports List the buyer's filed reports.
-func (s *UsersService) Reports(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/reports", opts)
-}
-
-// Messages Message threads with organizers.
-func (s *UsersService) Messages(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/messages", opts)
-}
-
-// MessageThread A single message thread.
-func (s *UsersService) MessageThread(ctx context.Context, threadId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/messages/" + enc(threadId), opts)
-}
-
-// SendTicketMessage Message the organizer of a ticket.
-func (s *UsersService) SendTicketMessage(ctx context.Context, ticketId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/tickets/" + enc(ticketId) + "/message", opts)
-}
-
-// Notifications In-app notifications.
-func (s *UsersService) Notifications(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/notifications", opts)
-}
-
-// NotificationsUnreadCount Count of unread notifications.
-func (s *UsersService) NotificationsUnreadCount(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/notifications/unread-count", opts)
-}
-
-// MarkNotificationsRead Mark notifications as read.
-func (s *UsersService) MarkNotificationsRead(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/notifications/read", opts)
-}
-
-// UpdateAvatar Update the account avatar.
-func (s *UsersService) UpdateAvatar(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/users/me/avatar", opts)
-}
-
-// UpdateNotificationSettings Update notification preferences.
-func (s *UsersService) UpdateNotificationSettings(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/users/me/notifications/settings", opts)
-}
-
-// SavedSearchesService Saved searches: The buyer's saved discovery searches.
-type SavedSearchesService struct{ c *Client }
-
-// List List saved searches.
-func (s *SavedSearchesService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/saved-searches", opts)
-}
-
-// Create Save a search.
-func (s *SavedSearchesService) Create(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/users/me/saved-searches", opts)
-}
-
-// Delete Delete a saved search.
-func (s *SavedSearchesService) Delete(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/users/me/saved-searches/" + enc(id), opts)
-}
-
-// DataExportService Data export: GDPR-style export of the account's data.
-type DataExportService struct{ c *Client }
-
-// Get Export all of the account's data.
-func (s *DataExportService) Get(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/users/me/export", opts)
-}
-
-// EventsService Events (Public): Public event discovery rails and per-event read panels.
+// EventsService Events (Public): Public event discovery and read, plus external ticket issuance.
 type EventsService struct{ c *Client }
 
-// List List / search public events (cursor-paginated).
+// List List and search published public events (cursor-paginated).
 func (s *EventsService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/events", opts)
 }
 
-// Trending Trending events.
-func (s *EventsService) Trending(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/trending", opts)
-}
-
-// Categories Event categories with counts.
-func (s *EventsService) Categories(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/categories", opts)
-}
-
-// Nearby Events near a lat/lng or city.
-func (s *EventsService) Nearby(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/nearby", opts)
-}
-
-// NewThisWeek Recently published events.
-func (s *EventsService) NewThisWeek(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/new-this-week", opts)
-}
-
-// EndingSoon Events with sales ending soon.
-func (s *EventsService) EndingSoon(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/ending-soon", opts)
-}
-
-// Free Free events.
-func (s *EventsService) Free(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/free", opts)
-}
-
-// Recommended Personalized recommendations.
-func (s *EventsService) Recommended(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/recommended", opts)
-}
-
-// Schedule An event's session schedule.
-func (s *EventsService) Schedule(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(id) + "/schedule", opts)
-}
-
-// Organizer Public organizer profile for an event.
-func (s *EventsService) Organizer(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(id) + "/organizer", opts)
-}
-
-// Faq An event's FAQ.
-func (s *EventsService) Faq(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(id) + "/faq", opts)
-}
-
-// Related Related events.
-func (s *EventsService) Related(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(id) + "/related", opts)
-}
-
-// ExpressInterest Register interest in an event.
-func (s *EventsService) ExpressInterest(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/events/" + enc(id) + "/interest", opts)
-}
-
-// Issue Externally issue a ticket for an event (integrator mode).
-func (s *EventsService) Issue(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/events/" + enc(eventId) + "/issue", opts)
-}
-
-// Get Get a public event by slug.
+// Get Event detail by slug (organizer info, schedule, active ticket types).
 func (s *EventsService) Get(ctx context.Context, slug string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(slug), opts)
 }
 
-// Tickets List an event's purchasable ticket types.
+// Tickets List an event's ticket types with live availability.
 func (s *EventsService) Tickets(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(id) + "/tickets", opts)
 }
 
-// TicketsService Tickets: Ticket QR/PDF, peer-to-peer transfers, promo validation and wallet passes.
-type TicketsService struct{ c *Client }
-
-// ValidatePromo Validate a promo code against a cart.
-func (s *TicketsService) ValidatePromo(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/tickets/promo/validate", opts)
+// Issue Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets).
+func (s *EventsService) Issue(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/events/" + enc(eventId) + "/issue", opts)
 }
 
-// Qr Current rotating QR payload for a ticket (JSON).
-func (s *TicketsService) Qr(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/tickets/" + enc(id) + "/qr", opts)
-}
-
-// Pdf Ticket PDF (application/pdf bytes). Returns raw bytes and the content type.
-func (s *TicketsService) Pdf(ctx context.Context, id string, opts ...RequestOption) ([]byte, string, error) {
-	return s.c.doRaw(ctx, "GET", "/api/v1/tickets/" + enc(id) + "/pdf", opts)
-}
-
-// Transfer Initiate a peer-to-peer transfer; the recipient gets a claim link.
-func (s *TicketsService) Transfer(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/tickets/" + enc(id) + "/transfer", opts)
-}
-
-// RevokeTransfer Revoke a still-pending transfer (initiator only).
-func (s *TicketsService) RevokeTransfer(ctx context.Context, transferId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/tickets/transfers/" + enc(transferId) + "/revoke", opts)
-}
-
-// GetTransfer Inspect a pending transfer by claim token.
-func (s *TicketsService) GetTransfer(ctx context.Context, token string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/tickets/transfers/claim/" + enc(token), opts)
-}
-
-// ClaimTransfer Claim a transfer; rewrites the ticket holder to the recipient.
-func (s *TicketsService) ClaimTransfer(ctx context.Context, token string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/tickets/transfers/claim/" + enc(token), opts)
-}
-
-// WalletPass Google/Apple wallet 'Save to Wallet' link (JSON).
-func (s *TicketsService) WalletPass(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/tickets/" + enc(id) + "/wallet-pass", opts)
-}
-
-// ListByEvent List ticket types for an event (legacy /ticket-types mount).
-func (s *TicketsService) ListByEvent(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/tickets/" + enc(eventId), opts)
-}
-
-// OrdersService Orders: Carted checkout: create, pay, cancel, invoice.
-type OrdersService struct{ c *Client }
-
-// Create Create an order (reserves inventory).
-func (s *OrdersService) Create(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/orders", opts)
-}
-
-// Get Order detail.
-func (s *OrdersService) Get(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/orders/" + enc(id), opts)
-}
-
-// Cancel Cancel an order and release its hold.
-func (s *OrdersService) Cancel(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/orders/" + enc(id) + "/cancel", opts)
-}
-
-// Pay Initiate payment for an order (nowpayments | paystack | flutterwave).
-func (s *OrdersService) Pay(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/orders/" + enc(id) + "/pay", opts)
-}
-
-// Invoice Order receipt PDF (application/pdf bytes). Returns raw bytes and the content type.
-func (s *OrdersService) Invoice(ctx context.Context, id string, opts ...RequestOption) ([]byte, string, error) {
-	return s.c.doRaw(ctx, "GET", "/api/v1/orders/" + enc(id) + "/invoice", opts)
-}
-
-// PaymentsService Payments: Payment intent creation, verification, method discovery, and inbound provider webhooks.
-type PaymentsService struct{ c *Client }
-
-// Verify Confirm a charge with the provider and complete the order (idempotent).
-func (s *PaymentsService) Verify(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/payments/verify", opts)
-}
-
-// Get Payment status for an order.
-func (s *PaymentsService) Get(ctx context.Context, orderId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/payments/" + enc(orderId), opts)
-}
-
-// Initiate Create a payment intent.
-func (s *PaymentsService) Initiate(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/payments/initiate", opts)
-}
-
-// Methods Available payment methods for a currency.
-func (s *PaymentsService) Methods(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/payments/methods", opts)
-}
-
-// CryptoCurrencies Supported crypto currencies (NOWPayments).
-func (s *PaymentsService) CryptoCurrencies(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/payments/crypto/currencies", opts)
-}
-
-// WebhookNowpayments Inbound NOWPayments webhook (provider callback; not for client use).
-func (s *PaymentsService) WebhookNowpayments(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/payments/webhook/nowpayments", opts)
-}
-
-// WebhookPaystack Inbound Paystack webhook (provider callback; not for client use).
-func (s *PaymentsService) WebhookPaystack(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/payments/webhook/paystack", opts)
-}
-
-// WebhookFlutterwave Inbound Flutterwave webhook (provider callback; not for client use).
-func (s *PaymentsService) WebhookFlutterwave(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/payments/webhook/flutterwave", opts)
-}
-
-// CheckinService Check-in: Gate scanning, offline manifests, batch sync, live stats and CSV export.
-type CheckinService struct{ c *Client }
-
-// Scan Validate a QR / short-code ticket at a gate.
-func (s *CheckinService) Scan(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin/scan", opts)
-}
-
-// Batch Flush a queue of scans captured offline.
-func (s *CheckinService) Batch(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin/batch", opts)
-}
-
-// Manual Manually check in an attendee.
-func (s *CheckinService) Manual(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin/event/" + enc(id) + "/manual", opts)
-}
-
-// Manifest Offline manifest (ticket hashes + statuses); pass ?since for a delta.
-func (s *CheckinService) Manifest(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/manifest", opts)
-}
-
-// Stats Live check-in stats snapshot.
-func (s *CheckinService) Stats(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/stats", opts)
-}
-
-// RegisterDevice Register a scanning device.
-func (s *CheckinService) RegisterDevice(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin/device/register", opts)
-}
-
-// LiveURL Server-Sent Events stream of live check-in stats. (SSE; returns the stream URL).
-func (s *CheckinService) LiveURL(id string, queryArgs ...map[string]interface{}) string {
-	return s.c.url("/api/v1/checkin/event/" + enc(id) + "/live", firstQuery(queryArgs))
-}
-
-// Gate Per-gate check-in stats.
-func (s *CheckinService) Gate(ctx context.Context, id string, gate string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/gate/" + enc(gate), opts)
-}
-
-// Export Check-in log CSV (text/csv bytes). Returns raw bytes and the content type.
-func (s *CheckinService) Export(ctx context.Context, id string, opts ...RequestOption) ([]byte, string, error) {
-	return s.c.doRaw(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/export", opts)
-}
-
-// ScanService Scanner-token check-in: Passwordless gate scanning using a short-lived scanner token (the /scan kiosk surface).
-type ScanService struct{ c *Client }
-
-// Exchange Exchange a scanner token for a scoped session.
-func (s *ScanService) Exchange(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin-token/exchange", opts)
-}
-
-// Session Current scanner session (event + gate context).
-func (s *ScanService) Session(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/checkin-token/me", opts)
-}
-
-// Scan Validate a ticket with the scanner session.
-func (s *ScanService) Scan(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin-token/scan", opts)
-}
-
-// Manifest Offline manifest for the scanner session.
-func (s *ScanService) Manifest(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/checkin-token/manifest", opts)
-}
-
-// Batch Flush offline scans for the scanner session.
-func (s *ScanService) Batch(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/checkin-token/batch", opts)
-}
-
-// SearchService Search: Full-text + faceted event search.
-type SearchService struct{ c *Client }
-
-// Query Full-text + faceted search.
-func (s *SearchService) Query(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/search", opts)
-}
-
-// Suggest Type-ahead suggestions.
-func (s *SearchService) Suggest(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/search/suggest", opts)
-}
-
-// Trending Trending search terms.
-func (s *SearchService) Trending(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/search/trending", opts)
-}
-
-// Popular Popular searches in a city.
-func (s *SearchService) Popular(ctx context.Context, city string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/search/popular/" + enc(city), opts)
-}
-
-// MediaService Media: Image/asset uploads and the stable /media/:id resolver.
-type MediaService struct{ c *Client }
-
-// OrganizerService Organizer: Authenticated organizer surface: organizations, members, events, ticket types, schedules, sections, promo codes, attendees, payouts, refunds, reports and messaging.
+// OrganizerService Organizer: Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
 type OrganizerService struct{ c *Client }
 
-// Setup Bootstrap an organizer account + first organization.
-func (s *OrganizerService) Setup(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/setup", opts)
-}
-
-// Me Current organizer context (orgs + memberships).
-func (s *OrganizerService) Me(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/me", opts)
-}
-
-// CreateOrganization Create an organization.
-func (s *OrganizerService) CreateOrganization(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/organizations", opts)
-}
-
-// GetOrganization Organization detail.
-func (s *OrganizerService) GetOrganization(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/organizations/" + enc(orgId), opts)
-}
-
-// UpdateOrganization Update an organization.
-func (s *OrganizerService) UpdateOrganization(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/organizations/" + enc(orgId), opts)
-}
-
-// SetOrganizationStatus Change an organization's status.
-func (s *OrganizerService) SetOrganizationStatus(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/organizations/" + enc(orgId) + "/status", opts)
-}
-
-// Members List organization members.
-func (s *OrganizerService) Members(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/organizations/" + enc(orgId) + "/members", opts)
-}
-
-// Invite Invite a member.
-func (s *OrganizerService) Invite(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/organizations/" + enc(orgId) + "/invites", opts)
-}
-
-// ResendInvite Resend a member invite.
-func (s *OrganizerService) ResendInvite(ctx context.Context, orgId string, memberId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/organizations/" + enc(orgId) + "/invites/" + enc(memberId) + "/resend", opts)
-}
-
-// RemoveMember Remove a member.
-func (s *OrganizerService) RemoveMember(ctx context.Context, orgId string, memberId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/organizations/" + enc(orgId) + "/members/" + enc(memberId), opts)
-}
-
-// Events List the organizer's events.
-func (s *OrganizerService) Events(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/events", opts)
+// GetOrganization Get organization details and per-currency wallet balances.
+func (s *OrganizerService) GetOrganization(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/organizer/organizations/" + enc(id), opts)
 }
 
 // CreateEvent Create a draft event.
@@ -666,19 +115,9 @@ func (s *OrganizerService) CreateEvent(ctx context.Context, opts ...RequestOptio
 	return s.c.do(ctx, "POST", "/api/v1/organizer/events", opts)
 }
 
-// GetEvent Organizer event detail.
-func (s *OrganizerService) GetEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id), opts)
-}
-
-// UpdateEvent Update an event.
+// UpdateEvent Partial-update an event.
 func (s *OrganizerService) UpdateEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id), opts)
-}
-
-// SetEventStatus Change an event's status.
-func (s *OrganizerService) SetEventStatus(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/status", opts)
 }
 
 // PublishEvent Publish a draft event.
@@ -691,14 +130,9 @@ func (s *OrganizerService) UnpublishEvent(ctx context.Context, id string, opts .
 	return s.c.do(ctx, "POST", "/api/v1/organizer/events/" + enc(id) + "/unpublish", opts)
 }
 
-// DeleteEvent Cancel/delete an event.
+// DeleteEvent Cancel an event.
 func (s *OrganizerService) DeleteEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id), opts)
-}
-
-// Tickets List an event's ticket types.
-func (s *OrganizerService) Tickets(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/tickets", opts)
 }
 
 // CreateTicket Create a ticket type.
@@ -706,17 +140,7 @@ func (s *OrganizerService) CreateTicket(ctx context.Context, id string, opts ...
 	return s.c.do(ctx, "POST", "/api/v1/organizer/events/" + enc(id) + "/tickets", opts)
 }
 
-// UpdateTicket Update a ticket type.
-func (s *OrganizerService) UpdateTicket(ctx context.Context, id string, tid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/tickets/" + enc(tid), opts)
-}
-
-// DeleteTicket Delete a ticket type.
-func (s *OrganizerService) DeleteTicket(ctx context.Context, id string, tid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/tickets/" + enc(tid), opts)
-}
-
-// Schedule List schedule sessions.
+// Schedule List schedule sessions (running order).
 func (s *OrganizerService) Schedule(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/schedule", opts)
 }
@@ -727,36 +151,36 @@ func (s *OrganizerService) CreateSchedule(ctx context.Context, id string, opts .
 }
 
 // UpdateSchedule Update a schedule session.
-func (s *OrganizerService) UpdateSchedule(ctx context.Context, id string, sid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sid), opts)
+func (s *OrganizerService) UpdateSchedule(ctx context.Context, id string, sessionId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sessionId), opts)
 }
 
 // DeleteSchedule Delete a schedule session.
-func (s *OrganizerService) DeleteSchedule(ctx context.Context, id string, sid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sid), opts)
+func (s *OrganizerService) DeleteSchedule(ctx context.Context, id string, sessionId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sessionId), opts)
 }
 
-// Sections List seating/venue sections.
+// Sections List seating/capacity sections.
 func (s *OrganizerService) Sections(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/sections", opts)
 }
 
-// CreateSection Add a section.
+// CreateSection Add a seating section.
 func (s *OrganizerService) CreateSection(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/organizer/events/" + enc(id) + "/sections", opts)
 }
 
-// UpdateSection Update a section.
-func (s *OrganizerService) UpdateSection(ctx context.Context, id string, sid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sid), opts)
+// UpdateSection Update a seating section.
+func (s *OrganizerService) UpdateSection(ctx context.Context, id string, sectionId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sectionId), opts)
 }
 
-// DeleteSection Delete a section.
-func (s *OrganizerService) DeleteSection(ctx context.Context, id string, sid string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sid), opts)
+// DeleteSection Delete a seating section.
+func (s *OrganizerService) DeleteSection(ctx context.Context, id string, sectionId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sectionId), opts)
 }
 
-// PromoCodes List promo codes.
+// PromoCodes List promo codes (optionally filtered by event).
 func (s *OrganizerService) PromoCodes(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/organizer/promo-codes", opts)
 }
@@ -771,206 +195,224 @@ func (s *OrganizerService) UpdatePromoCode(ctx context.Context, id string, opts 
 	return s.c.do(ctx, "PUT", "/api/v1/organizer/promo-codes/" + enc(id), opts)
 }
 
-// DeletePromoCode Delete a promo code.
+// DeletePromoCode Delete or disable a promo code.
 func (s *OrganizerService) DeletePromoCode(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "DELETE", "/api/v1/organizer/promo-codes/" + enc(id), opts)
 }
 
-// EventAnalytics Sales/analytics for an event.
-func (s *OrganizerService) EventAnalytics(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/analytics", opts)
+// EventCustomizationService Event page customization: Per-event public-page theming and the “Good to know” FAQ.
+type EventCustomizationService struct{ c *Client }
+
+// Get Get an event's page customization (theme, layout, FAQ, SEO).
+func (s *EventCustomizationService) Get(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/organizer/event-customization/" + enc(id), opts)
 }
 
-// EventAttendees Attendee CRM list for an event.
-func (s *OrganizerService) EventAttendees(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/attendees", opts)
+// Update Update an event's page customization (incl. the FAQ list).
+func (s *EventCustomizationService) Update(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "PUT", "/api/v1/organizer/event-customization/" + enc(id), opts)
 }
 
-// EventExport Attendee export CSV (text/csv bytes). Returns raw bytes and the content type.
-func (s *OrganizerService) EventExport(ctx context.Context, id string, opts ...RequestOption) ([]byte, string, error) {
-	return s.c.doRaw(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/export", opts)
+// TicketsService Tickets: Checkout-time ticket helpers.
+type TicketsService struct{ c *Client }
+
+// ValidatePromo Validate a promo code against a cart (read-only preview, does not consume a use).
+func (s *TicketsService) ValidatePromo(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/tickets/promo/validate", opts)
 }
 
-// Payouts List payouts.
-func (s *OrganizerService) Payouts(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/payouts", opts)
+// OrdersService Orders: Carted checkout: create, read, pay, cancel.
+type OrdersService struct{ c *Client }
+
+// Create Create an order (guest checkout needs only name + email).
+func (s *OrdersService) Create(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/orders", opts)
 }
 
-// Payout Payout detail.
-func (s *OrganizerService) Payout(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/payouts/" + enc(id), opts)
+// Get Get an order (pass ?token for guest reads).
+func (s *OrdersService) Get(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/orders/" + enc(id), opts)
 }
 
-// RequestPayout Request a payout.
-func (s *OrganizerService) RequestPayout(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/payouts/request", opts)
+// Pay Initiate payment (provider: nowpayments | paystack | flutterwave).
+func (s *OrdersService) Pay(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/orders/" + enc(id) + "/pay", opts)
 }
 
-// UpdatePayoutSettings Update payout settings.
-func (s *OrganizerService) UpdatePayoutSettings(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/payout-settings", opts)
+// Cancel Cancel an unpaid order and release held inventory.
+func (s *OrdersService) Cancel(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/orders/" + enc(id) + "/cancel", opts)
 }
 
-// Refunds List refund requests for an org.
-func (s *OrganizerService) Refunds(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/refunds", opts)
+// PaymentsService Payments: Verify charges, read payment status, list crypto coins.
+type PaymentsService struct{ c *Client }
+
+// Verify Actively verify a payment with the provider and issue tickets (idempotent, poll-safe).
+func (s *PaymentsService) Verify(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/payments/verify", opts)
 }
 
-// DecideRefund Approve or deny a refund request.
-func (s *OrganizerService) DecideRefund(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/refunds/" + enc(id) + "/decide", opts)
+// Get Read payment/order status and attempts (read-only).
+func (s *PaymentsService) Get(ctx context.Context, orderId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/payments/" + enc(orderId), opts)
 }
 
-// Reports List reports filed against an org (read-only).
-func (s *OrganizerService) Reports(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/reports", opts)
+// CryptoCurrencies List supported NOWPayments crypto coins (for the payCurrency value).
+func (s *PaymentsService) CryptoCurrencies(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/payments/crypto/currencies", opts)
 }
 
-// ResolveReport Resolve a report (admins only; organizers receive 403).
-func (s *OrganizerService) ResolveReport(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/reports/" + enc(id) + "/resolve", opts)
+// CheckinService Check-in: Gate scanning, offline manifests + sync, live stats.
+type CheckinService struct{ c *Client }
+
+// Scan Validate a QR, barcode or 6-character door code at the gate.
+func (s *CheckinService) Scan(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/checkin/scan", opts)
 }
 
-// Messages Org-wide buyer message threads.
-func (s *OrganizerService) Messages(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/messages", opts)
+// Manual Manually check in a typed ticket code.
+func (s *CheckinService) Manual(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/checkin/event/" + enc(id) + "/manual", opts)
 }
 
-// Overview Org dashboard overview.
-func (s *OrganizerService) Overview(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/overview", opts)
+// Manifest Hashed guest-list manifest for offline scanning (pass ?since for a delta).
+func (s *CheckinService) Manifest(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/manifest", opts)
 }
 
-// Referral Referral program summary + commissions.
-func (s *OrganizerService) Referral(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/referral", opts)
+// Batch Sync up to 500 queued offline scans.
+func (s *CheckinService) Batch(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/checkin/batch", opts)
 }
 
-// Notifications Org notifications.
-func (s *OrganizerService) Notifications(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/notifications", opts)
+// Stats Check-in totals, capacity %, entry rate and per-gate breakdown.
+func (s *CheckinService) Stats(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/stats", opts)
 }
 
-// FundWallet Top up the org wallet (returns a payment intent).
-func (s *OrganizerService) FundWallet(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/wallets/org/" + enc(orgId) + "/fund", opts)
+// Gate Per-gate check-in stats slice.
+func (s *CheckinService) Gate(ctx context.Context, id string, gate string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/checkin/event/" + enc(id) + "/gate/" + enc(gate), opts)
 }
 
-// FundWalletStatus Poll a wallet top-up payment.
-func (s *OrganizerService) FundWalletStatus(ctx context.Context, orgId string, orderId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/wallets/org/" + enc(orgId) + "/fund/" + enc(orderId), opts)
+// LiveURL Server-Sent Events stream a stats snapshot every 2 seconds. (SSE; returns the stream URL).
+func (s *CheckinService) LiveURL(id string, queryArgs ...map[string]interface{}) string {
+	return s.c.url("/api/v1/checkin/event/" + enc(id) + "/live", firstQuery(queryArgs))
 }
 
-// PayoutDetails Stored payout destinations.
-func (s *OrganizerService) PayoutDetails(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/orgs/" + enc(orgId) + "/payout-details", opts)
+// CommunityService Community: Verified-attendee reviews, organizer follows/subscribers and event waitlists.
+type CommunityService struct{ c *Client }
+
+// SubmitReview Review an event (checked-in ticket holders only; ticketCode + email prove attendance).
+func (s *CommunityService) SubmitReview(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/community/reviews", opts)
 }
 
-// UpdatePayoutDetails Set payout details for a currency.
-func (s *OrganizerService) UpdatePayoutDetails(ctx context.Context, orgId string, currency string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/orgs/" + enc(orgId) + "/payout-details/" + enc(currency), opts)
+// Follow Follow an organizer (subscribe to new-event announcements).
+func (s *CommunityService) Follow(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/community/orgs/" + enc(orgId) + "/follow", opts)
 }
 
-// TicketMessage Reply to a buyer on a ticket thread.
-func (s *OrganizerService) TicketMessage(ctx context.Context, ticketId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/tickets/" + enc(ticketId) + "/message", opts)
+// Followers List an organizer's subscribers (organizer auth).
+func (s *CommunityService) Followers(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/community/orgs/" + enc(orgId) + "/followers", opts)
 }
 
-// MessageThread A single org message thread.
-func (s *OrganizerService) MessageThread(ctx context.Context, threadId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/messages/" + enc(threadId), opts)
+// RemoveFollower Remove a subscriber (organizer auth).
+func (s *CommunityService) RemoveFollower(ctx context.Context, orgId string, followerId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/community/orgs/" + enc(orgId) + "/followers/" + enc(followerId), opts)
 }
 
-// WalletsService Wallets: Organization wallet balances and ledger.
-type WalletsService struct{ c *Client }
-
-// List List wallets the caller can see.
-func (s *WalletsService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/wallets", opts)
+// JoinWaitlist Join an event waitlist (offers fire on cancellations).
+func (s *CommunityService) JoinWaitlist(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/community/events/" + enc(eventId) + "/waitlist", opts)
 }
 
-// Get An org's wallet balances (per currency).
-func (s *WalletsService) Get(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/wallets/org/" + enc(orgId), opts)
+// GrowthService Growth (Organizer): Comp tickets, CSV import, broadcasts and attendee tags.
+type GrowthService struct{ c *Client }
+
+// MintComps Bulk-mint and email complimentary tickets.
+func (s *GrowthService) MintComps(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps", opts)
 }
 
-// Bootstrap Provision an org's wallet.
-func (s *WalletsService) Bootstrap(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/wallets/org/" + enc(orgId) + "/bootstrap", opts)
+// ImportCompsCsv Import attendees (comp tickets) from CSV.
+func (s *GrowthService) ImportCompsCsv(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps/import-csv", opts)
 }
 
-// Transactions Wallet ledger transactions.
-func (s *WalletsService) Transactions(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/wallets/org/" + enc(orgId) + "/transactions", opts)
+// BroadcastEvent Email a broadcast to an event's attendees (replies thread to the organizer inbox).
+func (s *GrowthService) BroadcastEvent(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/broadcast", opts)
 }
 
-// ScannerTokensService Scanner tokens: Manage short-lived gate-scanner tokens for staff devices.
-type ScannerTokensService struct{ c *Client }
-
-// List List scanner tokens.
-func (s *ScannerTokensService) List(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId), opts)
+// AddTags Tag attendees (additive; powers broadcast filters and CRM segments).
+func (s *GrowthService) AddTags(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/tags", opts)
 }
 
-// Create Mint a scanner token.
-func (s *ScannerTokensService) Create(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId), opts)
+// RemoveTag Remove an attendee tag.
+func (s *GrowthService) RemoveTag(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/organizer/growth/tags", opts)
 }
 
-// Update Update a scanner token.
-func (s *ScannerTokensService) Update(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId) + "/" + enc(tokenId), opts)
+// UsersService Buyers: The authenticated buyer: profile, ticket wallet, data export, refunds, reports and organizer messaging.
+type UsersService struct{ c *Client }
+
+// Me Current buyer profile.
+func (s *UsersService) Me(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/users/me", opts)
 }
 
-// Delete Revoke a scanner token.
-func (s *ScannerTokensService) Delete(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId) + "/" + enc(tokenId), opts)
+// Tickets The buyer's ticket wallet (cursor-paginated).
+func (s *UsersService) Tickets(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/users/me/tickets", opts)
 }
 
-// Reissue Reissue a scanner token's secret.
-func (s *ScannerTokensService) Reissue(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId) + "/" + enc(tokenId) + "/reissue", opts)
+// Export GDPR data export one JSON download of everything on the account.
+func (s *UsersService) Export(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/users/me/export", opts)
 }
 
-// Metrics Usage metrics for a scanner token.
-func (s *ScannerTokensService) Metrics(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/scanner-tokens/org/" + enc(orgId) + "/" + enc(tokenId) + "/metrics", opts)
+// CreateRefund Request a refund for a ticket.
+func (s *UsersService) CreateRefund(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/users/me/refunds", opts)
 }
 
-// IntegrationsService Integrations: API keys, MCP tokens, and integration usage metrics.
+// CreateReport File a report against an event or organizer.
+func (s *UsersService) CreateReport(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/users/me/reports", opts)
+}
+
+// Messages The buyer's message threads with organizers.
+func (s *UsersService) Messages(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/users/me/messages", opts)
+}
+
+// SendTicketMessage Message the organizer about a ticket (rate-limited).
+func (s *UsersService) SendTicketMessage(ctx context.Context, ticketId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/users/me/tickets/" + enc(ticketId) + "/message", opts)
+}
+
+// IntegrationsService API keys: Manage your organization's own API keys (organizer owner/admin auth).
 type IntegrationsService struct{ c *Client }
 
-// Metrics Integration usage metrics.
-func (s *IntegrationsService) Metrics(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/metrics", opts)
-}
-
-// ApiCalls Recent API call log.
-func (s *IntegrationsService) ApiCalls(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-calls", opts)
-}
-
-// McpCalls Recent MCP tool-call log.
-func (s *IntegrationsService) McpCalls(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/mcp-calls", opts)
-}
-
-// ListApiKeys List API keys.
-func (s *IntegrationsService) ListApiKeys(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys", opts)
-}
-
-// CreateApiKey Mint an API key (plaintext returned once).
+// CreateApiKey Create an API key (plaintext secret returned exactly once).
 func (s *IntegrationsService) CreateApiKey(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys", opts)
 }
 
-// UpdateApiKey Update an API key (scopes, status, allowlist).
+// ListApiKeys List API keys (prefixes and metadata only, never the secret).
+func (s *IntegrationsService) ListApiKeys(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys", opts)
+}
+
+// UpdateApiKey Update a key (rename, pause, re-scope).
 func (s *IntegrationsService) UpdateApiKey(ctx context.Context, orgId string, keyId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "PUT", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys/" + enc(keyId), opts)
 }
 
-// RotateApiKey Rotate an API key's secret.
+// RotateApiKey Rotate a key's secret (new secret returned once; old one invalidated).
 func (s *IntegrationsService) RotateApiKey(ctx context.Context, orgId string, keyId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys/" + enc(keyId) + "/rotate", opts)
 }
@@ -980,245 +422,17 @@ func (s *IntegrationsService) DeleteApiKey(ctx context.Context, orgId string, ke
 	return s.c.do(ctx, "DELETE", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/api-keys/" + enc(keyId), opts)
 }
 
-// ListMcpTokens List MCP tokens.
-func (s *IntegrationsService) ListMcpTokens(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/mcp-tokens", opts)
-}
-
-// CreateMcpToken Mint an MCP token.
-func (s *IntegrationsService) CreateMcpToken(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/mcp-tokens", opts)
-}
-
-// UpdateMcpToken Update an MCP token.
-func (s *IntegrationsService) UpdateMcpToken(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/mcp-tokens/" + enc(tokenId), opts)
-}
-
-// DeleteMcpToken Revoke an MCP token.
-func (s *IntegrationsService) DeleteMcpToken(ctx context.Context, orgId string, tokenId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/integrations/org/" + enc(orgId) + "/mcp-tokens/" + enc(tokenId), opts)
-}
-
-// EventCustomizationService Event customization: Per-event white-label theming.
-type EventCustomizationService struct{ c *Client }
-
-// Get Get an event's customization.
-func (s *EventCustomizationService) Get(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/event-customization/" + enc(eventId), opts)
-}
-
-// Update Update an event's customization.
-func (s *EventCustomizationService) Update(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/organizer/event-customization/" + enc(eventId), opts)
-}
-
-// GrowthService Growth: Comp tickets, CSV import, broadcasts and attendee tags.
-type GrowthService struct{ c *Client }
-
-// MintComps Issue complimentary tickets.
-func (s *GrowthService) MintComps(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps", opts)
-}
-
-// ImportCompsCsv Bulk-issue comps from CSV.
-func (s *GrowthService) ImportCompsCsv(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps/import-csv", opts)
-}
-
-// ListComps List issued comps.
-func (s *GrowthService) ListComps(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps", opts)
-}
-
-// ResendComp Resend a comp ticket email.
-func (s *GrowthService) ResendComp(ctx context.Context, eventId string, ticketId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/comps/" + enc(ticketId) + "/resend", opts)
-}
-
-// BroadcastEvent Broadcast to an event's attendees.
-func (s *GrowthService) BroadcastEvent(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/events/" + enc(eventId) + "/broadcast", opts)
-}
-
-// BroadcastOrg Broadcast to an org's followers/subscribers.
-func (s *GrowthService) BroadcastOrg(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/orgs/" + enc(orgId) + "/broadcast", opts)
-}
-
-// ListBroadcasts List sent broadcasts.
-func (s *GrowthService) ListBroadcasts(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/growth/orgs/" + enc(orgId) + "/broadcasts", opts)
-}
-
-// AddTags Tag attendees (body: orgId, ticketIds, tag).
-func (s *GrowthService) AddTags(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/organizer/growth/tags", opts)
-}
-
-// RemoveTag Remove a tag (body: orgId, ticketId, tag).
-func (s *GrowthService) RemoveTag(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/organizer/growth/tags", opts)
-}
-
-// ListTags List tags for an org.
-func (s *GrowthService) ListTags(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/growth/orgs/" + enc(orgId) + "/tags", opts)
-}
-
-// TagAttendees List attendees with a given tag.
-func (s *GrowthService) TagAttendees(ctx context.Context, orgId string, tag string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/organizer/growth/orgs/" + enc(orgId) + "/tags/" + enc(tag) + "/attendees", opts)
-}
-
-// PublicEventsService Public events (vanity): Public org/event read endpoints used by hosted pages and white-label sites.
-type PublicEventsService struct{ c *Client }
-
-// GetBySlug Public event by slug.
-func (s *PublicEventsService) GetBySlug(ctx context.Context, slug string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/events/" + enc(slug), opts)
-}
-
-// OrgEvents An organization's public events.
-func (s *PublicEventsService) OrgEvents(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/events/orgs/by/" + enc(orgId), opts)
-}
-
-// GetByOrgEvent Public event by org + event id.
-func (s *PublicEventsService) GetByOrgEvent(ctx context.Context, orgId string, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/events/by/" + enc(orgId) + "/" + enc(eventId), opts)
-}
-
-// GetById Public event by id.
-func (s *PublicEventsService) GetById(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/events/by-id/" + enc(eventId), opts)
-}
-
-// Preview Draft event preview (token-gated).
-func (s *PublicEventsService) Preview(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/events/preview/" + enc(eventId), opts)
-}
-
-// SiteService Public site: Sitemap, newsletter signup and platform status.
-type SiteService struct{ c *Client }
-
-// Sitemap Sitemap XML (application/xml bytes). Returns raw bytes and the content type.
-func (s *SiteService) Sitemap(ctx context.Context, opts ...RequestOption) ([]byte, string, error) {
-	return s.c.doRaw(ctx, "GET", "/api/v1/public/sitemap.xml", opts)
-}
-
-// NewsletterStart Begin newsletter double-opt-in.
-func (s *SiteService) NewsletterStart(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/public/newsletter/start", opts)
-}
-
-// NewsletterConfirm Confirm a newsletter subscription.
-func (s *SiteService) NewsletterConfirm(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/public/newsletter", opts)
-}
-
-// Status Platform status + incidents.
-func (s *SiteService) Status(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/public/status", opts)
-}
-
-// CommunityService Community: Verified-attendee reviews, organizer follows and event waitlists.
-type CommunityService struct{ c *Client }
-
-// SubmitReview Submit a verified-attendee review (ticketCode + email prove ownership).
-func (s *CommunityService) SubmitReview(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/reviews", opts)
-}
-
-// OrgReviews Published reviews for an org.
-func (s *CommunityService) OrgReviews(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/orgs/" + enc(orgId) + "/reviews", opts)
-}
-
-// EventReviews Published reviews for an event.
-func (s *CommunityService) EventReviews(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/events/" + enc(eventId) + "/reviews", opts)
-}
-
-// Follow Follow an organizer.
-func (s *CommunityService) Follow(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/orgs/" + enc(orgId) + "/follow", opts)
-}
-
-// Unfollow Unsubscribe via emailed token.
-func (s *CommunityService) Unfollow(ctx context.Context, token string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/unfollow/" + enc(token), opts)
-}
-
-// JoinWaitlist Join an event waitlist.
-func (s *CommunityService) JoinWaitlist(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/events/" + enc(eventId) + "/waitlist", opts)
-}
-
-// AcceptWaitlist Accept a waitlist offer via emailed token.
-func (s *CommunityService) AcceptWaitlist(ctx context.Context, id string, token string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/waitlist/accept/" + enc(id) + "/" + enc(token), opts)
-}
-
-// ManageReviews Organizer view of all reviews (incl. pending).
-func (s *CommunityService) ManageReviews(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/orgs/" + enc(orgId) + "/reviews/manage", opts)
-}
-
-// ReplyReview Organizer reply to a review.
-func (s *CommunityService) ReplyReview(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/reviews/" + enc(id) + "/reply", opts)
-}
-
-// SetReviewStatus Publish/hide a review.
-func (s *CommunityService) SetReviewStatus(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/reviews/" + enc(id) + "/status", opts)
-}
-
-// Followers List an org's followers.
-func (s *CommunityService) Followers(ctx context.Context, orgId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/orgs/" + enc(orgId) + "/followers", opts)
-}
-
-// RemoveFollower Remove a follower.
-func (s *CommunityService) RemoveFollower(ctx context.Context, orgId string, followerId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/community/orgs/" + enc(orgId) + "/followers/" + enc(followerId), opts)
-}
-
-// EventWaitlist List an event's waitlist.
-func (s *CommunityService) EventWaitlist(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/community/events/" + enc(eventId) + "/waitlist", opts)
-}
-
-// OfferWaitlist Offer spots to waitlisted attendees.
-func (s *CommunityService) OfferWaitlist(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/community/events/" + enc(eventId) + "/waitlist/offer", opts)
-}
-
-// TrackService Tracking: Lightweight page-view tracking.
-type TrackService struct{ c *Client }
-
-// View Record a page view.
-func (s *TrackService) View(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/track/view", opts)
-}
-
-// WebhooksService Webhooks: Register webhook endpoints and inspect/replay deliveries. (Use client.webhooks.verify() to validate inbound signatures.)
+// WebhooksService Webhooks: Register webhook endpoints, manage secrets, inspect and replay deliveries. (Use webhooks.verify() to validate inbound signatures.)
 type WebhooksService struct{ c *Client }
 
-// Catalog List subscribable event types.
-func (s *WebhooksService) Catalog(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/webhooks/catalog", opts)
-}
-
-// List List registered webhook endpoints.
-func (s *WebhooksService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/webhooks", opts)
-}
-
-// Create Register a webhook endpoint.
+// Create Create a webhook endpoint (signing secret returned exactly once).
 func (s *WebhooksService) Create(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/webhooks", opts)
+}
+
+// List List webhook endpoints.
+func (s *WebhooksService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/webhooks", opts)
 }
 
 // Update Update a webhook endpoint.
@@ -1226,14 +440,19 @@ func (s *WebhooksService) Update(ctx context.Context, id string, opts ...Request
 	return s.c.do(ctx, "PUT", "/api/v1/webhooks/" + enc(id), opts)
 }
 
-// RotateSecret Rotate a webhook signing secret.
-func (s *WebhooksService) RotateSecret(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/webhooks/" + enc(id) + "/rotate-secret", opts)
-}
-
 // Delete Delete a webhook endpoint.
 func (s *WebhooksService) Delete(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "DELETE", "/api/v1/webhooks/" + enc(id), opts)
+}
+
+// Test Send a signed test event to the endpoint.
+func (s *WebhooksService) Test(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/webhooks/" + enc(id) + "/test", opts)
+}
+
+// RotateSecret Rotate the signing secret (new secret returned once).
+func (s *WebhooksService) RotateSecret(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/webhooks/" + enc(id) + "/rotate-secret", opts)
 }
 
 // Deliveries List delivery attempts for an endpoint.
@@ -1241,122 +460,13 @@ func (s *WebhooksService) Deliveries(ctx context.Context, id string, opts ...Req
 	return s.c.do(ctx, "GET", "/api/v1/webhooks/" + enc(id) + "/deliveries", opts)
 }
 
-// Test Send a test event to an endpoint.
-func (s *WebhooksService) Test(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/webhooks/" + enc(id) + "/test", opts)
-}
-
 // Replay Replay a past delivery.
 func (s *WebhooksService) Replay(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/webhooks/deliveries/" + enc(id) + "/replay", opts)
 }
 
-// WhiteLabelService White-label: Self-contained white-label surface: events, ticket types, customization, orders, tickets and check-in under one integration.
-type WhiteLabelService struct{ c *Client }
-
-// Me The integration's white-label context.
-func (s *WhiteLabelService) Me(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/me", opts)
-}
-
-// Events List white-label events.
-func (s *WhiteLabelService) Events(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/events", opts)
-}
-
-// CreateEvent Create a white-label event.
-func (s *WhiteLabelService) CreateEvent(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/white-label/events", opts)
-}
-
-// GetEvent White-label event detail.
-func (s *WhiteLabelService) GetEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/events/" + enc(id), opts)
-}
-
-// UpdateEvent Update a white-label event.
-func (s *WhiteLabelService) UpdateEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/white-label/events/" + enc(id), opts)
-}
-
-// DeleteEvent Delete a white-label event.
-func (s *WhiteLabelService) DeleteEvent(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "DELETE", "/api/v1/white-label/events/" + enc(id), opts)
-}
-
-// TicketTypes List ticket types.
-func (s *WhiteLabelService) TicketTypes(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/events/" + enc(eventId) + "/ticket-types", opts)
-}
-
-// CreateTicketType Create a ticket type.
-func (s *WhiteLabelService) CreateTicketType(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/white-label/events/" + enc(eventId) + "/ticket-types", opts)
-}
-
-// GetCustomization Get event customization.
-func (s *WhiteLabelService) GetCustomization(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/events/" + enc(eventId) + "/customization", opts)
-}
-
-// UpdateCustomization Update event customization.
-func (s *WhiteLabelService) UpdateCustomization(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "PUT", "/api/v1/white-label/events/" + enc(eventId) + "/customization", opts)
-}
-
-// Orders List white-label orders.
-func (s *WhiteLabelService) Orders(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/orders", opts)
-}
-
-// Tickets List white-label tickets.
-func (s *WhiteLabelService) Tickets(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/tickets", opts)
-}
-
-// CheckinScan Validate a ticket at a white-label gate.
-func (s *WhiteLabelService) CheckinScan(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/white-label/checkin/scan", opts)
-}
-
-// CheckinStats White-label check-in stats.
-func (s *WhiteLabelService) CheckinStats(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/checkin/stats/" + enc(eventId), opts)
-}
-
-// Wallets White-label wallet balances.
-func (s *WhiteLabelService) Wallets(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/white-label/wallets", opts)
-}
-
-// SupportService Support: Support tickets and threaded messages.
-type SupportService struct{ c *Client }
-
-// List List support tickets.
-func (s *SupportService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/support", opts)
-}
-
-// Create Open a support ticket.
-func (s *SupportService) Create(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/support", opts)
-}
-
-// Get Support ticket detail.
-func (s *SupportService) Get(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "GET", "/api/v1/support/" + enc(id), opts)
-}
-
-// SendMessage Reply on a support ticket.
-func (s *SupportService) SendMessage(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/support/" + enc(id) + "/messages", opts)
-}
-
-// UtilService Utilities: Helper endpoints.
-type UtilService struct{ c *Client }
-
-// ResolveCoords Resolve an address to coordinates.
-func (s *UtilService) ResolveCoords(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
-	return s.c.do(ctx, "POST", "/api/v1/util/resolve-coords", opts)
+// Catalog List every subscribable event type (no auth).
+func (s *WebhooksService) Catalog(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/webhooks/catalog", opts)
 }
 

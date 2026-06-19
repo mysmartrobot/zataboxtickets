@@ -166,37 +166,6 @@ module Zatabox
       end
     end
 
-    # multipart/form-data upload for POST /media/upload.
-    def upload(file, filename: "upload.bin", content_type: "application/octet-stream", field: "file", fields: {})
-      boundary = "----zatabox#{SecureRandom.hex(16)}"
-      parts = []
-      (fields || {}).each do |k, v|
-        parts << "--#{boundary}\r\n"
-        parts << "Content-Disposition: form-data; name=\"#{k}\"\r\n\r\n"
-        parts << "#{v}\r\n"
-      end
-      parts << "--#{boundary}\r\n"
-      parts << "Content-Disposition: form-data; name=\"#{field}\"; filename=\"#{filename}\"\r\n"
-      parts << "Content-Type: #{content_type}\r\n\r\n"
-      body = +"".b
-      parts.each { |p| body << p.b }
-      body << (file.is_a?(String) ? file.b : file.to_s.b)
-      body << "\r\n--#{boundary}--\r\n".b
-
-      uri = URI(url("/api/v1/media/upload"))
-      req = Net::HTTP::Post.new(uri.request_uri)
-      req["Authorization"] = "Bearer #{token}"
-      req["User-Agent"] = @user_agent
-      req["Accept"] = "application/json"
-      req["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
-      req.body = body
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.scheme == "https"
-      res = http.request(req)
-      raise error_from(res.code.to_i, res) if res.code.to_i >= 400
-
-      unwrap(res.body)
-    end
 
     private
 
@@ -273,15 +242,11 @@ module Zatabox
     end
 
     def attach_resources
-      client = self
       instances = {}
       Zatabox::Resources::REGISTRY.each do |name, klass|
         instances[name] = klass.new(self)
       end
-      # Hand-written extras layered onto the generated namespaces.
-      instances[:media].define_singleton_method(:upload) do |file, **opts|
-        client.upload(file, **opts)
-      end
+      # Hand-written extra layered onto the generated webhooks namespace.
       instances[:webhooks].define_singleton_method(:verify) do |payload, signature, secret, tolerance = 300|
         Zatabox.verify_webhook(payload, signature, secret, tolerance)
       end

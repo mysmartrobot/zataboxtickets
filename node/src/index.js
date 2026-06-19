@@ -66,10 +66,9 @@ class ZataboxClient {
     // Generated resource namespaces (client.events, client.orders, …).
     attachResources(this);
 
-    // Hand-written extras layered onto the generated namespaces.
+    // Hand-written extra layered onto the generated webhooks namespace.
     this.webhooks.verify = (payload, signatureHeader, secret) =>
       verifyWebhook(payload, signatureHeader, secret);
-    this.media.upload = (file, opts) => this._upload(file, opts);
   }
 
   /** Swap the bearer token at runtime (e.g. after auth.refresh()). */
@@ -174,27 +173,6 @@ class ZataboxClient {
       yield data;
       cursor = nextCursorOf(data);
     } while (cursor);
-  }
-
-  /** multipart/form-data upload for POST /media/upload. */
-  async _upload(file, opts = {}) {
-    const field = opts.field || 'file';
-    const filename = opts.filename || 'upload.bin';
-    const type = opts.contentType || 'application/octet-stream';
-    const form = new FormData();
-    const blob = file instanceof Blob ? file : new Blob([file], { type });
-    form.append(field, blob, filename);
-    for (const [k, v] of Object.entries(opts.fields || {})) form.append(k, String(v));
-
-    const res = await this.fetch(this._url('/api/v1/media/upload'), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.token}`, 'User-Agent': this.userAgent, Accept: 'application/json' },
-      body: form,
-    });
-    const text = await res.text();
-    const json = text ? safeJson(text) : null;
-    if (!res.ok) throw errorFrom(res, json, text);
-    return json && 'data' in json ? json.data : json;
   }
 }
 

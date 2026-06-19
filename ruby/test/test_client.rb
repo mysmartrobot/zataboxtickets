@@ -26,6 +26,13 @@ def json_ok(obj, code: 200, headers: {})
   FakeResp.new(code.to_s, JSON.generate(obj), { "Content-Type" => "application/json" }.merge(headers))
 end
 
+# Every namespace the publicly-documented SDK exposes.
+PUBLIC_NS = %i[auth events organizer event_customization tickets orders payments
+               checkin community growth users integrations webhooks].freeze
+# Internal/undocumented surfaces that must NEVER ship in a public SDK.
+FORBIDDEN_NS = %i[admin media white_label wallets scanner_tokens support util track
+                  site saved_searches public_events scan search data_export].freeze
+
 class TestClient < Minitest::Test
   def test_requires_credential
     assert_raises(ArgumentError) { Zatabox::Client.new }
@@ -40,20 +47,16 @@ class TestClient < Minitest::Test
 
   def test_namespaces_present
     c = Zatabox::Client.new(api_key: "vt_live_x")
-    %i[auth users events orders checkin organizer webhooks community growth
-       white_label saved_searches public_events media].each do |ns|
-      assert_respond_to c, ns
-    end
+    PUBLIC_NS.each { |ns| assert_respond_to c, ns }
     assert_respond_to c.events, :list
     assert_respond_to c.webhooks, :verify
-    assert_respond_to c.media, :upload
     assert_respond_to c.checkin, :live_url
   end
 
-  def test_admin_not_exposed
-    # The /api/v1/admin/* surface must never ship in this public SDK.
+  def test_forbidden_namespaces_absent
+    # Platform admin / white-label / media / wallets must never ship publicly.
     c = Zatabox::Client.new(api_key: "vt_live_x")
-    refute_respond_to c, :admin, "admin namespace must not be exposed"
+    FORBIDDEN_NS.each { |ns| refute_respond_to c, ns, "forbidden namespace exposed: #{ns}" }
   end
 
   def test_get_unwraps_and_query
@@ -129,16 +132,6 @@ class TestClient < Minitest::Test
     assert_equal 30, err.details["retryAfter"]
   end
 
-  def test_binary
-    $zatabox_handler = lambda do |_req|
-      FakeResp.new("200", "%PDF", { "Content-Type" => "application/pdf", "Content-Disposition" => 'inline; filename="t.pdf"' })
-    end
-    r = Zatabox::Client.new(api_key: "vt_live_x").tickets.pdf("5")
-    assert_equal "%PDF", r[:data]
-    assert_equal "application/pdf", r[:content_type]
-    assert_equal "t.pdf", r[:filename]
-  end
-
   def test_paginate
     $zatabox_handler = lambda do |req|
       if req.path.include?("cursor=c2")
@@ -180,23 +173,6 @@ class TestClient < Minitest::Test
     c.set_bearer_token("jwt2")
     c.users.me
     assert_equal "Bearer jwt2", seen[:auth]
-  end
-
-  def test_upload_multipart
-    captured = {}
-    $zatabox_handler = lambda do |req|
-      captured[:body] = req.body
-      captured[:ct] = req["Content-Type"]
-      json_ok({ success: true, data: { ok: true } })
-    end
-    Zatabox::Client.new(api_key: "vt_live_x").media.upload(
-      "PNGDATA", filename: "cover.png", content_type: "image/png", fields: { caption: "hi" }
-    )
-    assert captured[:ct].start_with?("multipart/form-data; boundary=")
-    assert_includes captured[:body], 'name="file"; filename="cover.png"'
-    assert_includes captured[:body], "Content-Type: image/png"
-    assert_includes captured[:body], "PNGDATA"
-    assert_includes captured[:body], 'name="caption"'
   end
 
   def test_version

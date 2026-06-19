@@ -3,11 +3,17 @@
 Official client libraries for the [Zatabox Tickets](https://zatabox.com) REST API —
 the white-label event-ticketing platform in **Node.js, Python, Ruby, PHP and Go**.
 
-Every SDK covers **all 244 REST endpoints** with the same ergonomics: scoped-key /
-JWT auth with automatic sandbox routing, idempotent writes, a typed error envelope,
-cursor auto-pagination, binary downloads, SSE stream URLs, multipart upload and
+Every SDK covers **all 78 publicly documented REST endpoints** (the
+integrator-facing surface published at <https://zatabox.com/docs/api>) with the same
+ergonomics: scoped-key / JWT auth with automatic sandbox routing, idempotent writes,
+a typed error envelope, cursor auto-pagination, live-stream (SSE) URLs and
 inbound-webhook signature verification using **only each language's standard
 library** (zero third-party runtime dependencies).
+
+> **Public surface only.** These SDKs deliberately expose *only* what is documented
+> for integrators. Internal/platform surfaces platform administration, white-label
+> internals, scanner tokens, wallets, MCP tokens, media upload, etc. are not
+> included.
 
 | Language | Folder | Runtime deps | Tests |
 |---|---|---|---|
@@ -19,7 +25,7 @@ library** (zero third-party runtime dependencies).
 
 ## Installation
 
-These SDKs are **distributed via this GitHub repository** — none is published to npm,
+These SDKs are **distributed via this GitHub repository** none is published to npm,
 PyPI, RubyGems, Packagist or a third-party Go registry. Each lives in a top-level
 language folder. Install the one you need; see that SDK's README for all options.
 
@@ -70,17 +76,16 @@ The generator validates the manifest (no duplicate routes/methods, well-formed
 paths) before emitting, then rewrites every SDK's resource layer. Cores and tests
 are untouched.
 
-## The 244 endpoints, by namespace
+## The 78 endpoints, by namespace
 
-`auth` · `users` · `savedSearches` · `dataExport` · `events` · `tickets` · `orders`
-· `payments` · `checkin` · `scan` · `search` · `media` · `organizer` · `wallets` ·
-`scannerTokens` · `integrations` · `eventCustomization` · `growth` · `publicEvents`
-· `site` · `community` · `track` · `webhooks` · `whiteLabel` · `support` · `util`
+`auth` · `events` · `organizer` · `eventCustomization` · `tickets` · `orders` ·
+`payments` · `checkin` · `community` · `growth` · `users` · `integrations` ·
+`webhooks`
 
-(These are the integrator-, organizer- and buyer-facing surfaces only. Platform
-administration is intentionally **not** part of these SDKs. Namespaces are spelled
-idiomatically per language — `savedSearches` in Node/PHP, `saved_searches` in
-Python/Ruby, `SavedSearches` in Go.)
+(These are exactly the integrator-, organizer- and buyer-facing surfaces published
+on the public docs. Namespaces are spelled idiomatically per language —
+`eventCustomization` in Node/PHP, `event_customization` in Python/Ruby,
+`EventCustomization` in Go.)
 
 ## Sandbox / test mode
 
@@ -115,9 +120,7 @@ ZATABOX_API_KEY=vt_live_…   → production (api.zatabox.com)
   `ZataboxError`/`Error` with `code`, `status`, `requestId`, `details`.
 - **Pagination** `paginate(listMethod, query)` follows the cursor across pages.
 - **Retries** `5xx`/network/timeout retried with exponential backoff; `4xx` never.
-- **Binary** (`tickets.pdf`, `orders.invoice`, `checkin.export`, `organizer.eventExport`,
-  `site.sitemap`) returns raw bytes; **SSE** (`checkin.live`) returns a stream URL;
-  **`media.upload`** is multipart.
+- **SSE** `checkin.live` returns a fully-qualified stream URL for an EventSource client.
 - **Webhooks** `webhooks.verify(rawBody, signatureHeader, secret)` validates the
   `t=…,v1=…` HMAC-SHA256 signature in constant time.
 

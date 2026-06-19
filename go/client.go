@@ -22,9 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
@@ -416,71 +414,6 @@ func nextCursor(page json.RawMessage) string {
 		return p.NextCursor
 	}
 	return p.Meta.Cursor
-}
-
-// ── media upload (multipart) ─────────────────────────────────────────────────
-
-// UploadOptions configures a media upload.
-type UploadOptions struct {
-	Filename    string
-	ContentType string
-	Field       string // form field name (default "file")
-	Fields      map[string]string
-}
-
-// Upload posts a file to /media/upload as multipart/form-data.
-func (s *MediaService) Upload(ctx context.Context, file []byte, opts UploadOptions) (json.RawMessage, error) {
-	return s.c.upload(ctx, file, opts)
-}
-
-func (c *Client) upload(ctx context.Context, file []byte, opts UploadOptions) (json.RawMessage, error) {
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	for k, v := range opts.Fields {
-		_ = w.WriteField(k, v)
-	}
-	field := opts.Field
-	if field == "" {
-		field = "file"
-	}
-	filename := opts.Filename
-	if filename == "" {
-		filename = "upload.bin"
-	}
-	ct := opts.ContentType
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name=%q; filename=%q`, field, filename))
-	h.Set("Content-Type", ct)
-	part, err := w.CreatePart(h)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := part.Write(file); err != nil {
-		return nil, err
-	}
-	_ = w.Close()
-
-	req, err := http.NewRequestWithContext(ctx, "POST", c.url("/api/v1/media/upload", nil), &buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token())
-	req.Header.Set("User-Agent", c.userAgent)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, &Error{Code: "NETWORK_ERROR", Message: err.Error()}
-	}
-	data, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, errorFrom(resp.StatusCode, data, resp.Header)
-	}
-	return unwrap(data), nil
 }
 
 // ── webhooks ─────────────────────────────────────────────────────────────────

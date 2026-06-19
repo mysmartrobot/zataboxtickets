@@ -18,6 +18,6 @@ Gem::Specification.new do |spec|
   spec.metadata["documentation_uri"] = "https://zatabox.com/docs"
   spec.metadata["source_code_uri"] = "https://github.com/mysmartrobot/zataboxtickets/tree/main/ruby"
   spec.metadata["bug_tracker_uri"] = "https://github.com/mysmartrobot/zataboxtickets/issues"
-  # Distributed via GitHub, not RubyGems — block accidental `gem push`.
+  # Distributed via GitHub, not RubyGems block accidental `gem push`.
   spec.metadata["allowed_push_host"] = "https://github.com/mysmartrobot/zataboxtickets"
 end

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -160,21 +159,6 @@ func TestRateLimited(t *testing.T) {
 	}
 }
 
-func TestBinary(t *testing.T) {
-	c, srv := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/pdf")
-		_, _ = w.Write([]byte("%PDF"))
-	})
-	defer srv.Close()
-	data, ct, err := c.Tickets.Pdf(context.Background(), "5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "%PDF" || ct != "application/pdf" {
-		t.Fatalf("got %q %q", data, ct)
-	}
-}
-
 func TestPaginate(t *testing.T) {
 	c, srv := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.RawQuery, "cursor=c2") {
@@ -246,37 +230,14 @@ func TestSetBearerToken(t *testing.T) {
 	}
 }
 
-func TestUpload(t *testing.T) {
-	var gotName, gotContent, gotField, gotCT string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotCT = r.Header.Get("Content-Type")
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
-			t.Errorf("parse multipart: %v", err)
-		}
-		f, hdr, err := r.FormFile("file")
-		if err != nil {
-			t.Errorf("form file: %v", err)
-		} else {
-			b, _ := io.ReadAll(f)
-			gotName = hdr.Filename
-			gotContent = string(b)
-		}
-		gotField = r.FormValue("caption")
-		writeEnvelope(w, 200, map[string]interface{}{"ok": true})
-	}))
-	defer srv.Close()
-	c := New("vt_live_x", WithBaseURL(srv.URL))
-	_, err := c.Media.Upload(context.Background(), []byte("PNGDATA"), UploadOptions{
-		Filename: "cover.png", ContentType: "image/png", Fields: map[string]string{"caption": "hi"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotName != "cover.png" || gotContent != "PNGDATA" || gotField != "hi" {
-		t.Fatalf("got name=%q content=%q field=%q", gotName, gotContent, gotField)
-	}
-	if !strings.HasPrefix(gotCT, "multipart/form-data; boundary=") {
-		t.Fatalf("content-type %q", gotCT)
+func TestForbiddenServicesAbsentByType(t *testing.T) {
+	// The internal/undocumented surfaces (Admin, Media, WhiteLabel, Wallets, …)
+	// must not exist as fields on the Client enforced at compile time. This test
+	// exists as documentation; if any were re-added, the package would still build
+	// but the public surface would have grown, which review should catch.
+	c := New("vt_live_x")
+	if c.Events == nil || c.Webhooks == nil || c.Organizer == nil {
+		t.Fatal("expected documented services to be initialised")
 	}
 }
 

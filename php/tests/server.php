@@ -44,14 +44,6 @@ if ($path === '/api/v1/events' && isset($_GET['rl'])) {
     exit;
 }
 
-// Binary download
-if ($path === '/api/v1/tickets/5/pdf') {
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: inline; filename="t.pdf"');
-    echo '%PDF';
-    exit;
-}
-
 // Pagination + GET echo
 if ($path === '/api/v1/events') {
     if (strpos($query, 'cursor=c2') !== false) {
@@ -64,19 +56,6 @@ if ($path === '/api/v1/events') {
 // Write echo
 if ($path === '/api/v1/orders' && $method === 'POST') {
     envelope(['idem' => $idem, 'ct' => $ct, 'auth' => $auth, 'body' => json_decode($rawBody, true)]);
-}
-
-// Multipart upload echo the received file + extra field
-if ($path === '/api/v1/media/upload' && $method === 'POST') {
-    $f = isset($_FILES['file']) ? $_FILES['file'] : null;
-    $content = ($f && is_uploaded_file($f['tmp_name'])) ? file_get_contents($f['tmp_name']) : ($f ? @file_get_contents($f['tmp_name']) : null);
-    envelope([
-        'filename' => $f['name'] ?? null,
-        'type' => $f['type'] ?? null,
-        'content' => $content,
-        'field' => $_POST['caption'] ?? null,
-        'ct' => $ct,
-    ]);
 }
 
 // users.me echoes the auth header (set-bearer test)

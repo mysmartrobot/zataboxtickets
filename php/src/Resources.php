@@ -8,7 +8,7 @@ namespace Zatabox\Resources;
 use Zatabox\Client;
 
 /**
- * Auth Registration, password + passwordless sign-in, token refresh, 2FA and verification.
+ * Auth Account registration, password + passwordless sign-in, 2FA login and token refresh.
  */
 class AuthResource
 {
@@ -20,25 +20,37 @@ class AuthResource
         $this->client = $client;
     }
 
-    /** Register a new user with email + password. */
+    /** Register an account; returns the user plus an accessToken/refreshToken pair. */
     public function register($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/auth/register", $opts + ['body' => $body]);
     }
 
-    /** Sign in with email + password; returns the JWT pair (or a 2FA challenge). */
+    /** Log in with email + password; returns a JWT pair (or a 2FA challenge). */
     public function login($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/auth/login", $opts + ['body' => $body]);
     }
 
-    /** Complete a login that returned a 2FA challenge. */
+    /** Complete a 2FA login challenge; returns the JWT pair. */
     public function loginVerify2fa($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/auth/2fa-verify", $opts + ['body' => $body]);
     }
 
-    /** Exchange a refresh token for a fresh access/refresh pair. */
+    /** Passwordless: email a buyer a 6-digit login code. */
+    public function requestToken($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/auth/token/request", $opts + ['body' => $body]);
+    }
+
+    /** Passwordless: exchange email + 6-digit code for a JWT pair. */
+    public function exchangeToken($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/auth/token/exchange", $opts + ['body' => $body]);
+    }
+
+    /** Refresh an expired access token (rotates the refresh token). */
     public function refresh($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/auth/refresh", $opts + ['body' => $body]);
@@ -49,286 +61,10 @@ class AuthResource
     {
         return $this->client->request('POST', "/api/v1/auth/logout", $opts + ['body' => $body]);
     }
-
-    /** Email a password-reset link. */
-    public function forgotPassword($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/forgot-password", $opts + ['body' => $body]);
-    }
-
-    /** Set a new password using a reset token. */
-    public function resetPassword($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/reset-password", $opts + ['body' => $body]);
-    }
-
-    /** Passwordless: email a 6-digit login code. */
-    public function requestToken($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/token/request", $opts + ['body' => $body]);
-    }
-
-    /** Passwordless: swap an emailed code for the JWT pair. */
-    public function exchangeToken($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/token/exchange", $opts + ['body' => $body]);
-    }
-
-    /** Verify a one-time passcode. */
-    public function verifyOtp($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/verify-otp", $opts + ['body' => $body]);
-    }
-
-    /** Confirm an email address from a verification token. */
-    public function verifyEmail($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/verify-email", $opts + ['body' => $body]);
-    }
-
-    /** Confirm a phone number from an SMS code. */
-    public function verifyPhone($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/verify-phone", $opts + ['body' => $body]);
-    }
-
-    /** Sign in with a third-party OAuth identity token. */
-    public function loginOauth($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/login/oauth", $opts + ['body' => $body]);
-    }
-
-    /** Begin enrolling TOTP two-factor auth. */
-    public function enable2fa($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/2fa/enable", $opts + ['body' => $body]);
-    }
-
-    /** Confirm a TOTP code to finish 2FA enrollment. */
-    public function verify2fa($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/auth/2fa/verify", $opts + ['body' => $body]);
-    }
 }
 
 /**
- * Users (Buyer) The authenticated account: profile, wallet, tickets, orders, refunds, reports, messaging and notifications.
- */
-class UsersResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Current user profile. */
-    public function me($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me", $opts + ['query' => $query]);
-    }
-
-    /** Update the current user profile. */
-    public function updateMe($body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/users/me", $opts + ['body' => $body]);
-    }
-
-    /** List the buyer's orders. */
-    public function orders($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/orders", $opts + ['query' => $query]);
-    }
-
-    /** List the buyer's tickets across all organizers. */
-    public function tickets($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/tickets", $opts + ['query' => $query]);
-    }
-
-    /** Close the account. */
-    public function deleteAccount($body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/users/me", $opts + ['body' => $body]);
-    }
-
-    /** Change the account password. */
-    public function changePassword($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/password", $opts + ['body' => $body]);
-    }
-
-    /** Recent account activity. */
-    public function activity($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/activity", $opts + ['query' => $query]);
-    }
-
-    /** Last-login metadata. */
-    public function loginInfo($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/login-info", $opts + ['query' => $query]);
-    }
-
-    /** Whether 2FA is enabled. */
-    public function twofaStatus($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/2fa/status", $opts + ['query' => $query]);
-    }
-
-    /** Start 2FA setup (returns the TOTP secret/QR). */
-    public function twofaSetup($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/2fa/setup", $opts + ['body' => $body]);
-    }
-
-    /** Enable 2FA after verifying a code. */
-    public function twofaEnable($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/2fa/enable", $opts + ['body' => $body]);
-    }
-
-    /** Disable 2FA. */
-    public function twofaDisable($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/2fa/disable", $opts + ['body' => $body]);
-    }
-
-    /** Submit a refund request for a ticket. */
-    public function createRefund($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/refunds", $opts + ['body' => $body]);
-    }
-
-    /** List the buyer's refund requests. */
-    public function refunds($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/refunds", $opts + ['query' => $query]);
-    }
-
-    /** Withdraw a pending refund request. */
-    public function withdrawRefund($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/refunds/" . Client::enc($id) . "/withdraw", $opts + ['body' => $body]);
-    }
-
-    /** File a report against an event or organizer. */
-    public function createReport($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/reports", $opts + ['body' => $body]);
-    }
-
-    /** List the buyer's filed reports. */
-    public function reports($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/reports", $opts + ['query' => $query]);
-    }
-
-    /** Message threads with organizers. */
-    public function messages($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/messages", $opts + ['query' => $query]);
-    }
-
-    /** A single message thread. */
-    public function messageThread($threadId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/messages/" . Client::enc($threadId), $opts + ['query' => $query]);
-    }
-
-    /** Message the organizer of a ticket. */
-    public function sendTicketMessage($ticketId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/tickets/" . Client::enc($ticketId) . "/message", $opts + ['body' => $body]);
-    }
-
-    /** In-app notifications. */
-    public function notifications($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/notifications", $opts + ['query' => $query]);
-    }
-
-    /** Count of unread notifications. */
-    public function notificationsUnreadCount($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/notifications/unread-count", $opts + ['query' => $query]);
-    }
-
-    /** Mark notifications as read. */
-    public function markNotificationsRead($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/notifications/read", $opts + ['body' => $body]);
-    }
-
-    /** Update the account avatar. */
-    public function updateAvatar($body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/users/me/avatar", $opts + ['body' => $body]);
-    }
-
-    /** Update notification preferences. */
-    public function updateNotificationSettings($body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/users/me/notifications/settings", $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Saved searches The buyer's saved discovery searches.
- */
-class SavedSearchesResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** List saved searches. */
-    public function list($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/saved-searches", $opts + ['query' => $query]);
-    }
-
-    /** Save a search. */
-    public function create($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/users/me/saved-searches", $opts + ['body' => $body]);
-    }
-
-    /** Delete a saved search. */
-    public function delete($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/users/me/saved-searches/" . Client::enc($id), $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Data export GDPR-style export of the account's data.
- */
-class DataExportResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Export all of the account's data. */
-    public function get($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/users/me/export", $opts + ['query' => $query]);
-    }
-}
-
-/**
- * Events (Public) Public event discovery rails and per-event read panels.
+ * Events (Public) Public event discovery and read, plus external ticket issuance.
  */
 class EventsResource
 {
@@ -340,443 +76,33 @@ class EventsResource
         $this->client = $client;
     }
 
-    /** List / search public events (cursor-paginated). */
+    /** List and search published public events (cursor-paginated). */
     public function list($query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/events", $opts + ['query' => $query]);
     }
 
-    /** Trending events. */
-    public function trending($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/trending", $opts + ['query' => $query]);
-    }
-
-    /** Event categories with counts. */
-    public function categories($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/categories", $opts + ['query' => $query]);
-    }
-
-    /** Events near a lat/lng or city. */
-    public function nearby($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/nearby", $opts + ['query' => $query]);
-    }
-
-    /** Recently published events. */
-    public function newThisWeek($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/new-this-week", $opts + ['query' => $query]);
-    }
-
-    /** Events with sales ending soon. */
-    public function endingSoon($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/ending-soon", $opts + ['query' => $query]);
-    }
-
-    /** Free events. */
-    public function free($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/free", $opts + ['query' => $query]);
-    }
-
-    /** Personalized recommendations. */
-    public function recommended($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/recommended", $opts + ['query' => $query]);
-    }
-
-    /** An event's session schedule. */
-    public function schedule($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/" . Client::enc($id) . "/schedule", $opts + ['query' => $query]);
-    }
-
-    /** Public organizer profile for an event. */
-    public function organizer($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/" . Client::enc($id) . "/organizer", $opts + ['query' => $query]);
-    }
-
-    /** An event's FAQ. */
-    public function faq($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/" . Client::enc($id) . "/faq", $opts + ['query' => $query]);
-    }
-
-    /** Related events. */
-    public function related($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/events/" . Client::enc($id) . "/related", $opts + ['query' => $query]);
-    }
-
-    /** Register interest in an event. */
-    public function expressInterest($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/events/" . Client::enc($id) . "/interest", $opts + ['body' => $body]);
-    }
-
-    /** Externally issue a ticket for an event (integrator mode). */
-    public function issue($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/events/" . Client::enc($eventId) . "/issue", $opts + ['body' => $body]);
-    }
-
-    /** Get a public event by slug. */
+    /** Event detail by slug (organizer info, schedule, active ticket types). */
     public function get($slug, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/events/" . Client::enc($slug), $opts + ['query' => $query]);
     }
 
-    /** List an event's purchasable ticket types. */
+    /** List an event's ticket types with live availability. */
     public function tickets($id, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/events/" . Client::enc($id) . "/tickets", $opts + ['query' => $query]);
     }
-}
 
-/**
- * Tickets Ticket QR/PDF, peer-to-peer transfers, promo validation and wallet passes.
- */
-class TicketsResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
+    /** Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets). */
+    public function issue($eventId, $body = null, array $opts = [])
     {
-        $this->client = $client;
-    }
-
-    /** Validate a promo code against a cart. */
-    public function validatePromo($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/tickets/promo/validate", $opts + ['body' => $body]);
-    }
-
-    /** Current rotating QR payload for a ticket (JSON). */
-    public function qr($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/tickets/" . Client::enc($id) . "/qr", $opts + ['query' => $query]);
-    }
-
-    /** Ticket PDF (application/pdf bytes). */
-    public function pdf($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/tickets/" . Client::enc($id) . "/pdf", $opts + ['query' => $query, 'raw' => true]);
-    }
-
-    /** Initiate a peer-to-peer transfer; the recipient gets a claim link. */
-    public function transfer($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/tickets/" . Client::enc($id) . "/transfer", $opts + ['body' => $body]);
-    }
-
-    /** Revoke a still-pending transfer (initiator only). */
-    public function revokeTransfer($transferId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/tickets/transfers/" . Client::enc($transferId) . "/revoke", $opts + ['body' => $body]);
-    }
-
-    /** Inspect a pending transfer by claim token. */
-    public function getTransfer($token, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/tickets/transfers/claim/" . Client::enc($token), $opts + ['query' => $query]);
-    }
-
-    /** Claim a transfer; rewrites the ticket holder to the recipient. */
-    public function claimTransfer($token, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/tickets/transfers/claim/" . Client::enc($token), $opts + ['body' => $body]);
-    }
-
-    /** Google/Apple wallet 'Save to Wallet' link (JSON). */
-    public function walletPass($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/tickets/" . Client::enc($id) . "/wallet-pass", $opts + ['query' => $query]);
-    }
-
-    /** List ticket types for an event (legacy /ticket-types mount). */
-    public function listByEvent($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/tickets/" . Client::enc($eventId), $opts + ['query' => $query]);
+        return $this->client->request('POST', "/api/v1/events/" . Client::enc($eventId) . "/issue", $opts + ['body' => $body]);
     }
 }
 
 /**
- * Orders Carted checkout: create, pay, cancel, invoice.
- */
-class OrdersResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Create an order (reserves inventory). */
-    public function create($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/orders", $opts + ['body' => $body]);
-    }
-
-    /** Order detail. */
-    public function get($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/orders/" . Client::enc($id), $opts + ['query' => $query]);
-    }
-
-    /** Cancel an order and release its hold. */
-    public function cancel($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/orders/" . Client::enc($id) . "/cancel", $opts + ['body' => $body]);
-    }
-
-    /** Initiate payment for an order (nowpayments | paystack | flutterwave). */
-    public function pay($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/orders/" . Client::enc($id) . "/pay", $opts + ['body' => $body]);
-    }
-
-    /** Order receipt PDF (application/pdf bytes). */
-    public function invoice($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/orders/" . Client::enc($id) . "/invoice", $opts + ['query' => $query, 'raw' => true]);
-    }
-}
-
-/**
- * Payments Payment intent creation, verification, method discovery, and inbound provider webhooks.
- */
-class PaymentsResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Confirm a charge with the provider and complete the order (idempotent). */
-    public function verify($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/payments/verify", $opts + ['body' => $body]);
-    }
-
-    /** Payment status for an order. */
-    public function get($orderId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/payments/" . Client::enc($orderId), $opts + ['query' => $query]);
-    }
-
-    /** Create a payment intent. */
-    public function initiate($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/payments/initiate", $opts + ['body' => $body]);
-    }
-
-    /** Available payment methods for a currency. */
-    public function methods($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/payments/methods", $opts + ['query' => $query]);
-    }
-
-    /** Supported crypto currencies (NOWPayments). */
-    public function cryptoCurrencies($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/payments/crypto/currencies", $opts + ['query' => $query]);
-    }
-
-    /** Inbound NOWPayments webhook (provider callback; not for client use). */
-    public function webhookNowpayments($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/payments/webhook/nowpayments", $opts + ['body' => $body]);
-    }
-
-    /** Inbound Paystack webhook (provider callback; not for client use). */
-    public function webhookPaystack($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/payments/webhook/paystack", $opts + ['body' => $body]);
-    }
-
-    /** Inbound Flutterwave webhook (provider callback; not for client use). */
-    public function webhookFlutterwave($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/payments/webhook/flutterwave", $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Check-in Gate scanning, offline manifests, batch sync, live stats and CSV export.
- */
-class CheckinResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Validate a QR / short-code ticket at a gate. */
-    public function scan($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin/scan", $opts + ['body' => $body]);
-    }
-
-    /** Flush a queue of scans captured offline. */
-    public function batch($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin/batch", $opts + ['body' => $body]);
-    }
-
-    /** Manually check in an attendee. */
-    public function manual($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin/event/" . Client::enc($id) . "/manual", $opts + ['body' => $body]);
-    }
-
-    /** Offline manifest (ticket hashes + statuses); pass ?since for a delta. */
-    public function manifest($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/manifest", $opts + ['query' => $query]);
-    }
-
-    /** Live check-in stats snapshot. */
-    public function stats($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/stats", $opts + ['query' => $query]);
-    }
-
-    /** Register a scanning device. */
-    public function registerDevice($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin/device/register", $opts + ['body' => $body]);
-    }
-
-    /** Server-Sent Events stream of live check-in stats. (SSE returns the stream URL). */
-    public function liveUrl($id, $query = null)
-    {
-        return $this->client->url("/api/v1/checkin/event/" . Client::enc($id) . "/live", $query);
-    }
-
-    /** Per-gate check-in stats. */
-    public function gate($id, $gate, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/gate/" . Client::enc($gate), $opts + ['query' => $query]);
-    }
-
-    /** Check-in log CSV (text/csv bytes). */
-    public function export($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/export", $opts + ['query' => $query, 'raw' => true]);
-    }
-}
-
-/**
- * Scanner-token check-in Passwordless gate scanning using a short-lived scanner token (the /scan kiosk surface).
- */
-class ScanResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Exchange a scanner token for a scoped session. */
-    public function exchange($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin-token/exchange", $opts + ['body' => $body]);
-    }
-
-    /** Current scanner session (event + gate context). */
-    public function session($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin-token/me", $opts + ['query' => $query]);
-    }
-
-    /** Validate a ticket with the scanner session. */
-    public function scan($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin-token/scan", $opts + ['body' => $body]);
-    }
-
-    /** Offline manifest for the scanner session. */
-    public function manifest($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/checkin-token/manifest", $opts + ['query' => $query]);
-    }
-
-    /** Flush offline scans for the scanner session. */
-    public function batch($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/checkin-token/batch", $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Search Full-text + faceted event search.
- */
-class SearchResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Full-text + faceted search. */
-    public function query($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/search", $opts + ['query' => $query]);
-    }
-
-    /** Type-ahead suggestions. */
-    public function suggest($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/search/suggest", $opts + ['query' => $query]);
-    }
-
-    /** Trending search terms. */
-    public function trending($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/search/trending", $opts + ['query' => $query]);
-    }
-
-    /** Popular searches in a city. */
-    public function popular($city, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/search/popular/" . Client::enc($city), $opts + ['query' => $query]);
-    }
-}
-
-/**
- * Media Image/asset uploads and the stable /media/:id resolver.
- */
-class MediaResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-}
-
-/**
- * Organizer Authenticated organizer surface: organizations, members, events, ticket types, schedules, sections, promo codes, attendees, payouts, refunds, reports and messaging.
+ * Organizer Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
  */
 class OrganizerResource
 {
@@ -788,70 +114,10 @@ class OrganizerResource
         $this->client = $client;
     }
 
-    /** Bootstrap an organizer account + first organization. */
-    public function setup($body = null, array $opts = [])
+    /** Get organization details and per-currency wallet balances. */
+    public function getOrganization($id, $query = null, array $opts = [])
     {
-        return $this->client->request('POST', "/api/v1/organizer/setup", $opts + ['body' => $body]);
-    }
-
-    /** Current organizer context (orgs + memberships). */
-    public function me($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/me", $opts + ['query' => $query]);
-    }
-
-    /** Create an organization. */
-    public function createOrganization($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/organizations", $opts + ['body' => $body]);
-    }
-
-    /** Organization detail. */
-    public function getOrganization($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/organizations/" . Client::enc($orgId), $opts + ['query' => $query]);
-    }
-
-    /** Update an organization. */
-    public function updateOrganization($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/organizations/" . Client::enc($orgId), $opts + ['body' => $body]);
-    }
-
-    /** Change an organization's status. */
-    public function setOrganizationStatus($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/organizations/" . Client::enc($orgId) . "/status", $opts + ['body' => $body]);
-    }
-
-    /** List organization members. */
-    public function members($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/organizations/" . Client::enc($orgId) . "/members", $opts + ['query' => $query]);
-    }
-
-    /** Invite a member. */
-    public function invite($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/organizations/" . Client::enc($orgId) . "/invites", $opts + ['body' => $body]);
-    }
-
-    /** Resend a member invite. */
-    public function resendInvite($orgId, $memberId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/organizations/" . Client::enc($orgId) . "/invites/" . Client::enc($memberId) . "/resend", $opts + ['body' => $body]);
-    }
-
-    /** Remove a member. */
-    public function removeMember($orgId, $memberId, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/organizations/" . Client::enc($orgId) . "/members/" . Client::enc($memberId), $opts + ['body' => $body]);
-    }
-
-    /** List the organizer's events. */
-    public function events($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events", $opts + ['query' => $query]);
+        return $this->client->request('GET', "/api/v1/organizer/organizations/" . Client::enc($id), $opts + ['query' => $query]);
     }
 
     /** Create a draft event. */
@@ -860,22 +126,10 @@ class OrganizerResource
         return $this->client->request('POST', "/api/v1/organizer/events", $opts + ['body' => $body]);
     }
 
-    /** Organizer event detail. */
-    public function getEvent($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id), $opts + ['query' => $query]);
-    }
-
-    /** Update an event. */
+    /** Partial-update an event. */
     public function updateEvent($id, $body = null, array $opts = [])
     {
         return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id), $opts + ['body' => $body]);
-    }
-
-    /** Change an event's status. */
-    public function setEventStatus($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/status", $opts + ['body' => $body]);
     }
 
     /** Publish a draft event. */
@@ -890,16 +144,10 @@ class OrganizerResource
         return $this->client->request('POST', "/api/v1/organizer/events/" . Client::enc($id) . "/unpublish", $opts + ['body' => $body]);
     }
 
-    /** Cancel/delete an event. */
+    /** Cancel an event. */
     public function deleteEvent($id, $body = null, array $opts = [])
     {
         return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id), $opts + ['body' => $body]);
-    }
-
-    /** List an event's ticket types. */
-    public function tickets($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/tickets", $opts + ['query' => $query]);
     }
 
     /** Create a ticket type. */
@@ -908,19 +156,7 @@ class OrganizerResource
         return $this->client->request('POST', "/api/v1/organizer/events/" . Client::enc($id) . "/tickets", $opts + ['body' => $body]);
     }
 
-    /** Update a ticket type. */
-    public function updateTicket($id, $tid, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/tickets/" . Client::enc($tid), $opts + ['body' => $body]);
-    }
-
-    /** Delete a ticket type. */
-    public function deleteTicket($id, $tid, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/tickets/" . Client::enc($tid), $opts + ['body' => $body]);
-    }
-
-    /** List schedule sessions. */
+    /** List schedule sessions (running order). */
     public function schedule($id, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/schedule", $opts + ['query' => $query]);
@@ -933,42 +169,42 @@ class OrganizerResource
     }
 
     /** Update a schedule session. */
-    public function updateSchedule($id, $sid, $body = null, array $opts = [])
+    public function updateSchedule($id, $sessionId, $body = null, array $opts = [])
     {
-        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/schedule/" . Client::enc($sid), $opts + ['body' => $body]);
+        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/schedule/" . Client::enc($sessionId), $opts + ['body' => $body]);
     }
 
     /** Delete a schedule session. */
-    public function deleteSchedule($id, $sid, $body = null, array $opts = [])
+    public function deleteSchedule($id, $sessionId, $body = null, array $opts = [])
     {
-        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/schedule/" . Client::enc($sid), $opts + ['body' => $body]);
+        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/schedule/" . Client::enc($sessionId), $opts + ['body' => $body]);
     }
 
-    /** List seating/venue sections. */
+    /** List seating/capacity sections. */
     public function sections($id, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/sections", $opts + ['query' => $query]);
     }
 
-    /** Add a section. */
+    /** Add a seating section. */
     public function createSection($id, $body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/organizer/events/" . Client::enc($id) . "/sections", $opts + ['body' => $body]);
     }
 
-    /** Update a section. */
-    public function updateSection($id, $sid, $body = null, array $opts = [])
+    /** Update a seating section. */
+    public function updateSection($id, $sectionId, $body = null, array $opts = [])
     {
-        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/sections/" . Client::enc($sid), $opts + ['body' => $body]);
+        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/sections/" . Client::enc($sectionId), $opts + ['body' => $body]);
     }
 
-    /** Delete a section. */
-    public function deleteSection($id, $sid, $body = null, array $opts = [])
+    /** Delete a seating section. */
+    public function deleteSection($id, $sectionId, $body = null, array $opts = [])
     {
-        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/sections/" . Client::enc($sid), $opts + ['body' => $body]);
+        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/sections/" . Client::enc($sectionId), $opts + ['body' => $body]);
     }
 
-    /** List promo codes. */
+    /** List promo codes (optionally filtered by event). */
     public function promoCodes($query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/organizer/promo-codes", $opts + ['query' => $query]);
@@ -986,315 +222,15 @@ class OrganizerResource
         return $this->client->request('PUT', "/api/v1/organizer/promo-codes/" . Client::enc($id), $opts + ['body' => $body]);
     }
 
-    /** Delete a promo code. */
+    /** Delete or disable a promo code. */
     public function deletePromoCode($id, $body = null, array $opts = [])
     {
         return $this->client->request('DELETE', "/api/v1/organizer/promo-codes/" . Client::enc($id), $opts + ['body' => $body]);
     }
-
-    /** Sales/analytics for an event. */
-    public function eventAnalytics($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/analytics", $opts + ['query' => $query]);
-    }
-
-    /** Attendee CRM list for an event. */
-    public function eventAttendees($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/attendees", $opts + ['query' => $query]);
-    }
-
-    /** Attendee export CSV (text/csv bytes). */
-    public function eventExport($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/export", $opts + ['query' => $query, 'raw' => true]);
-    }
-
-    /** List payouts. */
-    public function payouts($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/payouts", $opts + ['query' => $query]);
-    }
-
-    /** Payout detail. */
-    public function payout($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/payouts/" . Client::enc($id), $opts + ['query' => $query]);
-    }
-
-    /** Request a payout. */
-    public function requestPayout($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/payouts/request", $opts + ['body' => $body]);
-    }
-
-    /** Update payout settings. */
-    public function updatePayoutSettings($body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/payout-settings", $opts + ['body' => $body]);
-    }
-
-    /** List refund requests for an org. */
-    public function refunds($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/refunds", $opts + ['query' => $query]);
-    }
-
-    /** Approve or deny a refund request. */
-    public function decideRefund($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/refunds/" . Client::enc($id) . "/decide", $opts + ['body' => $body]);
-    }
-
-    /** List reports filed against an org (read-only). */
-    public function reports($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/reports", $opts + ['query' => $query]);
-    }
-
-    /** Resolve a report (admins only; organizers receive 403). */
-    public function resolveReport($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/reports/" . Client::enc($id) . "/resolve", $opts + ['body' => $body]);
-    }
-
-    /** Org-wide buyer message threads. */
-    public function messages($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/messages", $opts + ['query' => $query]);
-    }
-
-    /** Org dashboard overview. */
-    public function overview($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/overview", $opts + ['query' => $query]);
-    }
-
-    /** Referral program summary + commissions. */
-    public function referral($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/referral", $opts + ['query' => $query]);
-    }
-
-    /** Org notifications. */
-    public function notifications($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/notifications", $opts + ['query' => $query]);
-    }
-
-    /** Top up the org wallet (returns a payment intent). */
-    public function fundWallet($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/wallets/org/" . Client::enc($orgId) . "/fund", $opts + ['body' => $body]);
-    }
-
-    /** Poll a wallet top-up payment. */
-    public function fundWalletStatus($orgId, $orderId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/wallets/org/" . Client::enc($orgId) . "/fund/" . Client::enc($orderId), $opts + ['query' => $query]);
-    }
-
-    /** Stored payout destinations. */
-    public function payoutDetails($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/payout-details", $opts + ['query' => $query]);
-    }
-
-    /** Set payout details for a currency. */
-    public function updatePayoutDetails($orgId, $currency, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/orgs/" . Client::enc($orgId) . "/payout-details/" . Client::enc($currency), $opts + ['body' => $body]);
-    }
-
-    /** Reply to a buyer on a ticket thread. */
-    public function ticketMessage($ticketId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/tickets/" . Client::enc($ticketId) . "/message", $opts + ['body' => $body]);
-    }
-
-    /** A single org message thread. */
-    public function messageThread($threadId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/messages/" . Client::enc($threadId), $opts + ['query' => $query]);
-    }
 }
 
 /**
- * Wallets Organization wallet balances and ledger.
- */
-class WalletsResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** List wallets the caller can see. */
-    public function list($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/wallets", $opts + ['query' => $query]);
-    }
-
-    /** An org's wallet balances (per currency). */
-    public function get($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/wallets/org/" . Client::enc($orgId), $opts + ['query' => $query]);
-    }
-
-    /** Provision an org's wallet. */
-    public function bootstrap($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/wallets/org/" . Client::enc($orgId) . "/bootstrap", $opts + ['body' => $body]);
-    }
-
-    /** Wallet ledger transactions. */
-    public function transactions($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/wallets/org/" . Client::enc($orgId) . "/transactions", $opts + ['query' => $query]);
-    }
-}
-
-/**
- * Scanner tokens Manage short-lived gate-scanner tokens for staff devices.
- */
-class ScannerTokensResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** List scanner tokens. */
-    public function list($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId), $opts + ['query' => $query]);
-    }
-
-    /** Mint a scanner token. */
-    public function create($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId), $opts + ['body' => $body]);
-    }
-
-    /** Update a scanner token. */
-    public function update($orgId, $tokenId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId) . "/" . Client::enc($tokenId), $opts + ['body' => $body]);
-    }
-
-    /** Revoke a scanner token. */
-    public function delete($orgId, $tokenId, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId) . "/" . Client::enc($tokenId), $opts + ['body' => $body]);
-    }
-
-    /** Reissue a scanner token's secret. */
-    public function reissue($orgId, $tokenId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId) . "/" . Client::enc($tokenId) . "/reissue", $opts + ['body' => $body]);
-    }
-
-    /** Usage metrics for a scanner token. */
-    public function metrics($orgId, $tokenId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/scanner-tokens/org/" . Client::enc($orgId) . "/" . Client::enc($tokenId) . "/metrics", $opts + ['query' => $query]);
-    }
-}
-
-/**
- * Integrations API keys, MCP tokens, and integration usage metrics.
- */
-class IntegrationsResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Integration usage metrics. */
-    public function metrics($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/metrics", $opts + ['query' => $query]);
-    }
-
-    /** Recent API call log. */
-    public function apiCalls($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-calls", $opts + ['query' => $query]);
-    }
-
-    /** Recent MCP tool-call log. */
-    public function mcpCalls($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/mcp-calls", $opts + ['query' => $query]);
-    }
-
-    /** List API keys. */
-    public function listApiKeys($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys", $opts + ['query' => $query]);
-    }
-
-    /** Mint an API key (plaintext returned once). */
-    public function createApiKey($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys", $opts + ['body' => $body]);
-    }
-
-    /** Update an API key (scopes, status, allowlist). */
-    public function updateApiKey($orgId, $keyId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId), $opts + ['body' => $body]);
-    }
-
-    /** Rotate an API key's secret. */
-    public function rotateApiKey($orgId, $keyId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId) . "/rotate", $opts + ['body' => $body]);
-    }
-
-    /** Revoke an API key. */
-    public function deleteApiKey($orgId, $keyId, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId), $opts + ['body' => $body]);
-    }
-
-    /** List MCP tokens. */
-    public function listMcpTokens($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/mcp-tokens", $opts + ['query' => $query]);
-    }
-
-    /** Mint an MCP token. */
-    public function createMcpToken($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/mcp-tokens", $opts + ['body' => $body]);
-    }
-
-    /** Update an MCP token. */
-    public function updateMcpToken($orgId, $tokenId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/mcp-tokens/" . Client::enc($tokenId), $opts + ['body' => $body]);
-    }
-
-    /** Revoke an MCP token. */
-    public function deleteMcpToken($orgId, $tokenId, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/mcp-tokens/" . Client::enc($tokenId), $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Event customization Per-event white-label theming.
+ * Event page customization Per-event public-page theming and the “Good to know” FAQ.
  */
 class EventCustomizationResource
 {
@@ -1306,23 +242,23 @@ class EventCustomizationResource
         $this->client = $client;
     }
 
-    /** Get an event's customization. */
-    public function get($eventId, $query = null, array $opts = [])
+    /** Get an event's page customization (theme, layout, FAQ, SEO). */
+    public function get($id, $query = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/organizer/event-customization/" . Client::enc($eventId), $opts + ['query' => $query]);
+        return $this->client->request('GET', "/api/v1/organizer/event-customization/" . Client::enc($id), $opts + ['query' => $query]);
     }
 
-    /** Update an event's customization. */
-    public function update($eventId, $body = null, array $opts = [])
+    /** Update an event's page customization (incl. the FAQ list). */
+    public function update($id, $body = null, array $opts = [])
     {
-        return $this->client->request('PUT', "/api/v1/organizer/event-customization/" . Client::enc($eventId), $opts + ['body' => $body]);
+        return $this->client->request('PUT', "/api/v1/organizer/event-customization/" . Client::enc($id), $opts + ['body' => $body]);
     }
 }
 
 /**
- * Growth Comp tickets, CSV import, broadcasts and attendee tags.
+ * Tickets Checkout-time ticket helpers.
  */
-class GrowthResource
+class TicketsResource
 {
     /** @var Client */
     private $client;
@@ -1332,77 +268,17 @@ class GrowthResource
         $this->client = $client;
     }
 
-    /** Issue complimentary tickets. */
-    public function mintComps($eventId, $body = null, array $opts = [])
+    /** Validate a promo code against a cart (read-only preview, does not consume a use). */
+    public function validatePromo($body = null, array $opts = [])
     {
-        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps", $opts + ['body' => $body]);
-    }
-
-    /** Bulk-issue comps from CSV. */
-    public function importCompsCsv($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps/import-csv", $opts + ['body' => $body]);
-    }
-
-    /** List issued comps. */
-    public function listComps($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps", $opts + ['query' => $query]);
-    }
-
-    /** Resend a comp ticket email. */
-    public function resendComp($eventId, $ticketId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps/" . Client::enc($ticketId) . "/resend", $opts + ['body' => $body]);
-    }
-
-    /** Broadcast to an event's attendees. */
-    public function broadcastEvent($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/broadcast", $opts + ['body' => $body]);
-    }
-
-    /** Broadcast to an org's followers/subscribers. */
-    public function broadcastOrg($orgId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/growth/orgs/" . Client::enc($orgId) . "/broadcast", $opts + ['body' => $body]);
-    }
-
-    /** List sent broadcasts. */
-    public function listBroadcasts($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/growth/orgs/" . Client::enc($orgId) . "/broadcasts", $opts + ['query' => $query]);
-    }
-
-    /** Tag attendees (body: orgId, ticketIds, tag). */
-    public function addTags($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/organizer/growth/tags", $opts + ['body' => $body]);
-    }
-
-    /** Remove a tag (body: orgId, ticketId, tag). */
-    public function removeTag($body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/organizer/growth/tags", $opts + ['body' => $body]);
-    }
-
-    /** List tags for an org. */
-    public function listTags($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/growth/orgs/" . Client::enc($orgId) . "/tags", $opts + ['query' => $query]);
-    }
-
-    /** List attendees with a given tag. */
-    public function tagAttendees($orgId, $tag, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/organizer/growth/orgs/" . Client::enc($orgId) . "/tags/" . Client::enc($tag) . "/attendees", $opts + ['query' => $query]);
+        return $this->client->request('POST', "/api/v1/tickets/promo/validate", $opts + ['body' => $body]);
     }
 }
 
 /**
- * Public events (vanity) Public org/event read endpoints used by hosted pages and white-label sites.
+ * Orders Carted checkout: create, read, pay, cancel.
  */
-class PublicEventsResource
+class OrdersResource
 {
     /** @var Client */
     private $client;
@@ -1412,41 +288,35 @@ class PublicEventsResource
         $this->client = $client;
     }
 
-    /** Public event by slug. */
-    public function getBySlug($slug, $query = null, array $opts = [])
+    /** Create an order (guest checkout needs only name + email). */
+    public function create($body = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/public/events/" . Client::enc($slug), $opts + ['query' => $query]);
+        return $this->client->request('POST', "/api/v1/orders", $opts + ['body' => $body]);
     }
 
-    /** An organization's public events. */
-    public function orgEvents($orgId, $query = null, array $opts = [])
+    /** Get an order (pass ?token for guest reads). */
+    public function get($id, $query = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/public/events/orgs/by/" . Client::enc($orgId), $opts + ['query' => $query]);
+        return $this->client->request('GET', "/api/v1/orders/" . Client::enc($id), $opts + ['query' => $query]);
     }
 
-    /** Public event by org + event id. */
-    public function getByOrgEvent($orgId, $eventId, $query = null, array $opts = [])
+    /** Initiate payment (provider: nowpayments | paystack | flutterwave). */
+    public function pay($id, $body = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/public/events/by/" . Client::enc($orgId) . "/" . Client::enc($eventId), $opts + ['query' => $query]);
+        return $this->client->request('POST', "/api/v1/orders/" . Client::enc($id) . "/pay", $opts + ['body' => $body]);
     }
 
-    /** Public event by id. */
-    public function getById($eventId, $query = null, array $opts = [])
+    /** Cancel an unpaid order and release held inventory. */
+    public function cancel($id, $body = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/public/events/by-id/" . Client::enc($eventId), $opts + ['query' => $query]);
-    }
-
-    /** Draft event preview (token-gated). */
-    public function preview($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/public/events/preview/" . Client::enc($eventId), $opts + ['query' => $query]);
+        return $this->client->request('POST', "/api/v1/orders/" . Client::enc($id) . "/cancel", $opts + ['body' => $body]);
     }
 }
 
 /**
- * Public site Sitemap, newsletter signup and platform status.
+ * Payments Verify charges, read payment status, list crypto coins.
  */
-class SiteResource
+class PaymentsResource
 {
     /** @var Client */
     private $client;
@@ -1456,33 +326,83 @@ class SiteResource
         $this->client = $client;
     }
 
-    /** Sitemap XML (application/xml bytes). */
-    public function sitemap($query = null, array $opts = [])
+    /** Actively verify a payment with the provider and issue tickets (idempotent, poll-safe). */
+    public function verify($body = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/public/sitemap.xml", $opts + ['query' => $query, 'raw' => true]);
+        return $this->client->request('POST', "/api/v1/payments/verify", $opts + ['body' => $body]);
     }
 
-    /** Begin newsletter double-opt-in. */
-    public function newsletterStart($body = null, array $opts = [])
+    /** Read payment/order status and attempts (read-only). */
+    public function get($orderId, $query = null, array $opts = [])
     {
-        return $this->client->request('POST', "/api/v1/public/newsletter/start", $opts + ['body' => $body]);
+        return $this->client->request('GET', "/api/v1/payments/" . Client::enc($orderId), $opts + ['query' => $query]);
     }
 
-    /** Confirm a newsletter subscription. */
-    public function newsletterConfirm($body = null, array $opts = [])
+    /** List supported NOWPayments crypto coins (for the payCurrency value). */
+    public function cryptoCurrencies($query = null, array $opts = [])
     {
-        return $this->client->request('POST', "/api/v1/public/newsletter", $opts + ['body' => $body]);
-    }
-
-    /** Platform status + incidents. */
-    public function status($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/public/status", $opts + ['query' => $query]);
+        return $this->client->request('GET', "/api/v1/payments/crypto/currencies", $opts + ['query' => $query]);
     }
 }
 
 /**
- * Community Verified-attendee reviews, organizer follows and event waitlists.
+ * Check-in Gate scanning, offline manifests + sync, live stats.
+ */
+class CheckinResource
+{
+    /** @var Client */
+    private $client;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+    }
+
+    /** Validate a QR, barcode or 6-character door code at the gate. */
+    public function scan($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/checkin/scan", $opts + ['body' => $body]);
+    }
+
+    /** Manually check in a typed ticket code. */
+    public function manual($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/checkin/event/" . Client::enc($id) . "/manual", $opts + ['body' => $body]);
+    }
+
+    /** Hashed guest-list manifest for offline scanning (pass ?since for a delta). */
+    public function manifest($id, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/manifest", $opts + ['query' => $query]);
+    }
+
+    /** Sync up to 500 queued offline scans. */
+    public function batch($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/checkin/batch", $opts + ['body' => $body]);
+    }
+
+    /** Check-in totals, capacity %, entry rate and per-gate breakdown. */
+    public function stats($id, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/stats", $opts + ['query' => $query]);
+    }
+
+    /** Per-gate check-in stats slice. */
+    public function gate($id, $gate, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/checkin/event/" . Client::enc($id) . "/gate/" . Client::enc($gate), $opts + ['query' => $query]);
+    }
+
+    /** Server-Sent Events stream a stats snapshot every 2 seconds. (SSE returns the stream URL). */
+    public function liveUrl($id, $query = null)
+    {
+        return $this->client->url("/api/v1/checkin/event/" . Client::enc($id) . "/live", $query);
+    }
+}
+
+/**
+ * Community Verified-attendee reviews, organizer follows/subscribers and event waitlists.
  */
 class CommunityResource
 {
@@ -1494,95 +414,41 @@ class CommunityResource
         $this->client = $client;
     }
 
-    /** Submit a verified-attendee review (ticketCode + email prove ownership). */
+    /** Review an event (checked-in ticket holders only; ticketCode + email prove attendance). */
     public function submitReview($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/community/reviews", $opts + ['body' => $body]);
     }
 
-    /** Published reviews for an org. */
-    public function orgReviews($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/community/orgs/" . Client::enc($orgId) . "/reviews", $opts + ['query' => $query]);
-    }
-
-    /** Published reviews for an event. */
-    public function eventReviews($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/community/events/" . Client::enc($eventId) . "/reviews", $opts + ['query' => $query]);
-    }
-
-    /** Follow an organizer. */
+    /** Follow an organizer (subscribe to new-event announcements). */
     public function follow($orgId, $body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/community/orgs/" . Client::enc($orgId) . "/follow", $opts + ['body' => $body]);
     }
 
-    /** Unsubscribe via emailed token. */
-    public function unfollow($token, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/community/unfollow/" . Client::enc($token), $opts + ['query' => $query]);
-    }
-
-    /** Join an event waitlist. */
-    public function joinWaitlist($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/community/events/" . Client::enc($eventId) . "/waitlist", $opts + ['body' => $body]);
-    }
-
-    /** Accept a waitlist offer via emailed token. */
-    public function acceptWaitlist($id, $token, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/community/waitlist/accept/" . Client::enc($id) . "/" . Client::enc($token), $opts + ['query' => $query]);
-    }
-
-    /** Organizer view of all reviews (incl. pending). */
-    public function manageReviews($orgId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/community/orgs/" . Client::enc($orgId) . "/reviews/manage", $opts + ['query' => $query]);
-    }
-
-    /** Organizer reply to a review. */
-    public function replyReview($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/community/reviews/" . Client::enc($id) . "/reply", $opts + ['body' => $body]);
-    }
-
-    /** Publish/hide a review. */
-    public function setReviewStatus($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/community/reviews/" . Client::enc($id) . "/status", $opts + ['body' => $body]);
-    }
-
-    /** List an org's followers. */
+    /** List an organizer's subscribers (organizer auth). */
     public function followers($orgId, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/community/orgs/" . Client::enc($orgId) . "/followers", $opts + ['query' => $query]);
     }
 
-    /** Remove a follower. */
+    /** Remove a subscriber (organizer auth). */
     public function removeFollower($orgId, $followerId, $body = null, array $opts = [])
     {
         return $this->client->request('DELETE', "/api/v1/community/orgs/" . Client::enc($orgId) . "/followers/" . Client::enc($followerId), $opts + ['body' => $body]);
     }
 
-    /** List an event's waitlist. */
-    public function eventWaitlist($eventId, $query = null, array $opts = [])
+    /** Join an event waitlist (offers fire on cancellations). */
+    public function joinWaitlist($eventId, $body = null, array $opts = [])
     {
-        return $this->client->request('GET', "/api/v1/community/events/" . Client::enc($eventId) . "/waitlist", $opts + ['query' => $query]);
-    }
-
-    /** Offer spots to waitlisted attendees. */
-    public function offerWaitlist($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/community/events/" . Client::enc($eventId) . "/waitlist/offer", $opts + ['body' => $body]);
+        return $this->client->request('POST', "/api/v1/community/events/" . Client::enc($eventId) . "/waitlist", $opts + ['body' => $body]);
     }
 }
 
 /**
- * Tracking Lightweight page-view tracking.
+ * Growth (Organizer) Comp tickets, CSV import, broadcasts and attendee tags.
  */
-class TrackResource
+class GrowthResource
 {
     /** @var Client */
     private $client;
@@ -1592,15 +458,139 @@ class TrackResource
         $this->client = $client;
     }
 
-    /** Record a page view. */
-    public function view($body = null, array $opts = [])
+    /** Bulk-mint and email complimentary tickets. */
+    public function mintComps($eventId, $body = null, array $opts = [])
     {
-        return $this->client->request('POST', "/api/v1/track/view", $opts + ['body' => $body]);
+        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps", $opts + ['body' => $body]);
+    }
+
+    /** Import attendees (comp tickets) from CSV. */
+    public function importCompsCsv($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/comps/import-csv", $opts + ['body' => $body]);
+    }
+
+    /** Email a broadcast to an event's attendees (replies thread to the organizer inbox). */
+    public function broadcastEvent($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/growth/events/" . Client::enc($eventId) . "/broadcast", $opts + ['body' => $body]);
+    }
+
+    /** Tag attendees (additive; powers broadcast filters and CRM segments). */
+    public function addTags($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/growth/tags", $opts + ['body' => $body]);
+    }
+
+    /** Remove an attendee tag. */
+    public function removeTag($body = null, array $opts = [])
+    {
+        return $this->client->request('DELETE', "/api/v1/organizer/growth/tags", $opts + ['body' => $body]);
     }
 }
 
 /**
- * Webhooks Register webhook endpoints and inspect/replay deliveries. (Use client.webhooks.verify() to validate inbound signatures.)
+ * Buyers The authenticated buyer: profile, ticket wallet, data export, refunds, reports and organizer messaging.
+ */
+class UsersResource
+{
+    /** @var Client */
+    private $client;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+    }
+
+    /** Current buyer profile. */
+    public function me($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/users/me", $opts + ['query' => $query]);
+    }
+
+    /** The buyer's ticket wallet (cursor-paginated). */
+    public function tickets($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/users/me/tickets", $opts + ['query' => $query]);
+    }
+
+    /** GDPR data export one JSON download of everything on the account. */
+    public function export($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/users/me/export", $opts + ['query' => $query]);
+    }
+
+    /** Request a refund for a ticket. */
+    public function createRefund($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/users/me/refunds", $opts + ['body' => $body]);
+    }
+
+    /** File a report against an event or organizer. */
+    public function createReport($body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/users/me/reports", $opts + ['body' => $body]);
+    }
+
+    /** The buyer's message threads with organizers. */
+    public function messages($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/users/me/messages", $opts + ['query' => $query]);
+    }
+
+    /** Message the organizer about a ticket (rate-limited). */
+    public function sendTicketMessage($ticketId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/users/me/tickets/" . Client::enc($ticketId) . "/message", $opts + ['body' => $body]);
+    }
+}
+
+/**
+ * API keys Manage your organization's own API keys (organizer owner/admin auth).
+ */
+class IntegrationsResource
+{
+    /** @var Client */
+    private $client;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+    }
+
+    /** Create an API key (plaintext secret returned exactly once). */
+    public function createApiKey($orgId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys", $opts + ['body' => $body]);
+    }
+
+    /** List API keys (prefixes and metadata only, never the secret). */
+    public function listApiKeys($orgId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys", $opts + ['query' => $query]);
+    }
+
+    /** Update a key (rename, pause, re-scope). */
+    public function updateApiKey($orgId, $keyId, $body = null, array $opts = [])
+    {
+        return $this->client->request('PUT', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId), $opts + ['body' => $body]);
+    }
+
+    /** Rotate a key's secret (new secret returned once; old one invalidated). */
+    public function rotateApiKey($orgId, $keyId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId) . "/rotate", $opts + ['body' => $body]);
+    }
+
+    /** Revoke an API key. */
+    public function deleteApiKey($orgId, $keyId, $body = null, array $opts = [])
+    {
+        return $this->client->request('DELETE', "/api/v1/organizer/integrations/org/" . Client::enc($orgId) . "/api-keys/" . Client::enc($keyId), $opts + ['body' => $body]);
+    }
+}
+
+/**
+ * Webhooks Register webhook endpoints, manage secrets, inspect and replay deliveries. (Use webhooks.verify() to validate inbound signatures.)
  */
 class WebhooksResource
 {
@@ -1612,22 +602,16 @@ class WebhooksResource
         $this->client = $client;
     }
 
-    /** List subscribable event types. */
-    public function catalog($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/webhooks/catalog", $opts + ['query' => $query]);
-    }
-
-    /** List registered webhook endpoints. */
-    public function list($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/webhooks", $opts + ['query' => $query]);
-    }
-
-    /** Register a webhook endpoint. */
+    /** Create a webhook endpoint (signing secret returned exactly once). */
     public function create($body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/webhooks", $opts + ['body' => $body]);
+    }
+
+    /** List webhook endpoints. */
+    public function list($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/webhooks", $opts + ['query' => $query]);
     }
 
     /** Update a webhook endpoint. */
@@ -1636,16 +620,22 @@ class WebhooksResource
         return $this->client->request('PUT', "/api/v1/webhooks/" . Client::enc($id), $opts + ['body' => $body]);
     }
 
-    /** Rotate a webhook signing secret. */
-    public function rotateSecret($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/webhooks/" . Client::enc($id) . "/rotate-secret", $opts + ['body' => $body]);
-    }
-
     /** Delete a webhook endpoint. */
     public function delete($id, $body = null, array $opts = [])
     {
         return $this->client->request('DELETE', "/api/v1/webhooks/" . Client::enc($id), $opts + ['body' => $body]);
+    }
+
+    /** Send a signed test event to the endpoint. */
+    public function test($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/webhooks/" . Client::enc($id) . "/test", $opts + ['body' => $body]);
+    }
+
+    /** Rotate the signing secret (new secret returned once). */
+    public function rotateSecret($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/webhooks/" . Client::enc($id) . "/rotate-secret", $opts + ['body' => $body]);
     }
 
     /** List delivery attempts for an endpoint. */
@@ -1654,178 +644,16 @@ class WebhooksResource
         return $this->client->request('GET', "/api/v1/webhooks/" . Client::enc($id) . "/deliveries", $opts + ['query' => $query]);
     }
 
-    /** Send a test event to an endpoint. */
-    public function test($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/webhooks/" . Client::enc($id) . "/test", $opts + ['body' => $body]);
-    }
-
     /** Replay a past delivery. */
     public function replay($id, $body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/webhooks/deliveries/" . Client::enc($id) . "/replay", $opts + ['body' => $body]);
     }
-}
 
-/**
- * White-label Self-contained white-label surface: events, ticket types, customization, orders, tickets and check-in under one integration.
- */
-class WhiteLabelResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
+    /** List every subscribable event type (no auth). */
+    public function catalog($query = null, array $opts = [])
     {
-        $this->client = $client;
-    }
-
-    /** The integration's white-label context. */
-    public function me($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/me", $opts + ['query' => $query]);
-    }
-
-    /** List white-label events. */
-    public function events($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/events", $opts + ['query' => $query]);
-    }
-
-    /** Create a white-label event. */
-    public function createEvent($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/white-label/events", $opts + ['body' => $body]);
-    }
-
-    /** White-label event detail. */
-    public function getEvent($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/events/" . Client::enc($id), $opts + ['query' => $query]);
-    }
-
-    /** Update a white-label event. */
-    public function updateEvent($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/white-label/events/" . Client::enc($id), $opts + ['body' => $body]);
-    }
-
-    /** Delete a white-label event. */
-    public function deleteEvent($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('DELETE', "/api/v1/white-label/events/" . Client::enc($id), $opts + ['body' => $body]);
-    }
-
-    /** List ticket types. */
-    public function ticketTypes($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/events/" . Client::enc($eventId) . "/ticket-types", $opts + ['query' => $query]);
-    }
-
-    /** Create a ticket type. */
-    public function createTicketType($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/white-label/events/" . Client::enc($eventId) . "/ticket-types", $opts + ['body' => $body]);
-    }
-
-    /** Get event customization. */
-    public function getCustomization($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/events/" . Client::enc($eventId) . "/customization", $opts + ['query' => $query]);
-    }
-
-    /** Update event customization. */
-    public function updateCustomization($eventId, $body = null, array $opts = [])
-    {
-        return $this->client->request('PUT', "/api/v1/white-label/events/" . Client::enc($eventId) . "/customization", $opts + ['body' => $body]);
-    }
-
-    /** List white-label orders. */
-    public function orders($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/orders", $opts + ['query' => $query]);
-    }
-
-    /** List white-label tickets. */
-    public function tickets($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/tickets", $opts + ['query' => $query]);
-    }
-
-    /** Validate a ticket at a white-label gate. */
-    public function checkinScan($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/white-label/checkin/scan", $opts + ['body' => $body]);
-    }
-
-    /** White-label check-in stats. */
-    public function checkinStats($eventId, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/checkin/stats/" . Client::enc($eventId), $opts + ['query' => $query]);
-    }
-
-    /** White-label wallet balances. */
-    public function wallets($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/white-label/wallets", $opts + ['query' => $query]);
-    }
-}
-
-/**
- * Support Support tickets and threaded messages.
- */
-class SupportResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** List support tickets. */
-    public function list($query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/support", $opts + ['query' => $query]);
-    }
-
-    /** Open a support ticket. */
-    public function create($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/support", $opts + ['body' => $body]);
-    }
-
-    /** Support ticket detail. */
-    public function get($id, $query = null, array $opts = [])
-    {
-        return $this->client->request('GET', "/api/v1/support/" . Client::enc($id), $opts + ['query' => $query]);
-    }
-
-    /** Reply on a support ticket. */
-    public function sendMessage($id, $body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/support/" . Client::enc($id) . "/messages", $opts + ['body' => $body]);
-    }
-}
-
-/**
- * Utilities Helper endpoints.
- */
-class UtilResource
-{
-    /** @var Client */
-    private $client;
-
-    public function __construct(Client $client)
-    {
-        $this->client = $client;
-    }
-
-    /** Resolve an address to coordinates. */
-    public function resolveCoords($body = null, array $opts = [])
-    {
-        return $this->client->request('POST', "/api/v1/util/resolve-coords", $opts + ['body' => $body]);
+        return $this->client->request('GET', "/api/v1/webhooks/catalog", $opts + ['query' => $query]);
     }
 }
 
@@ -1834,31 +662,18 @@ final class Registry
 {
     const MAP = [
         'auth' => AuthResource::class,
-        'users' => UsersResource::class,
-        'savedSearches' => SavedSearchesResource::class,
-        'dataExport' => DataExportResource::class,
         'events' => EventsResource::class,
+        'organizer' => OrganizerResource::class,
+        'eventCustomization' => EventCustomizationResource::class,
         'tickets' => TicketsResource::class,
         'orders' => OrdersResource::class,
         'payments' => PaymentsResource::class,
         'checkin' => CheckinResource::class,
-        'scan' => ScanResource::class,
-        'search' => SearchResource::class,
-        'media' => MediaResource::class,
-        'organizer' => OrganizerResource::class,
-        'wallets' => WalletsResource::class,
-        'scannerTokens' => ScannerTokensResource::class,
-        'integrations' => IntegrationsResource::class,
-        'eventCustomization' => EventCustomizationResource::class,
-        'growth' => GrowthResource::class,
-        'publicEvents' => PublicEventsResource::class,
-        'site' => SiteResource::class,
         'community' => CommunityResource::class,
-        'track' => TrackResource::class,
+        'growth' => GrowthResource::class,
+        'users' => UsersResource::class,
+        'integrations' => IntegrationsResource::class,
         'webhooks' => WebhooksResource::class,
-        'whiteLabel' => WhiteLabelResource::class,
-        'support' => SupportResource::class,
-        'util' => UtilResource::class,
     ];
 }
 

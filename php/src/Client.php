@@ -75,9 +75,8 @@ class Client
         foreach (Registry::MAP as $prop => $cls) {
             $this->{$prop} = new $cls($this);
         }
-        // Hand-written extras layered onto the generated namespaces.
+        // Hand-written extra layered onto the generated webhooks namespace.
         $this->webhooks = new WebhooksResourceExt($this);
-        $this->media = new MediaResourceExt($this);
     }
 
     /** RFC 3986 encoding of a single path segment. */
@@ -221,55 +220,6 @@ class Client
                 break;
             }
         }
-    }
-
-    /** multipart/form-data upload for POST /media/upload. */
-    public function upload($file, array $opts = [])
-    {
-        $field = isset($opts['field']) ? $opts['field'] : 'file';
-        $filename = isset($opts['filename']) ? $opts['filename'] : 'upload.bin';
-        $ct = isset($opts['contentType']) ? $opts['contentType'] : 'application/octet-stream';
-        $fields = isset($opts['fields']) ? $opts['fields'] : [];
-        $boundary = '----zatabox' . bin2hex(random_bytes(16));
-        $crlf = "\r\n";
-        $bodyStr = '';
-        foreach ($fields as $k => $v) {
-            $bodyStr .= '--' . $boundary . $crlf;
-            $bodyStr .= 'Content-Disposition: form-data; name="' . $k . '"' . $crlf . $crlf;
-            $bodyStr .= $v . $crlf;
-        }
-        $bodyStr .= '--' . $boundary . $crlf;
-        $bodyStr .= 'Content-Disposition: form-data; name="' . $field . '"; filename="' . $filename . '"' . $crlf;
-        $bodyStr .= 'Content-Type: ' . $ct . $crlf . $crlf;
-        $bodyStr .= $file . $crlf;
-        $bodyStr .= '--' . $boundary . '--' . $crlf;
-
-        $hdr = [
-            'Authorization: Bearer ' . $this->token(),
-            'User-Agent: ' . $this->userAgent,
-            'Accept: application/json',
-            'Content-Type: multipart/form-data; boundary=' . $boundary,
-        ];
-        $ch = curl_init($this->url('/api/v1/media/upload'));
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => $hdr,
-            CURLOPT_POSTFIELDS => $bodyStr,
-            CURLOPT_TIMEOUT => $this->timeout,
-        ]);
-        $resp = curl_exec($ch);
-        if ($resp === false) {
-            $errMsg = curl_error($ch);
-            curl_close($ch);
-            throw new ZataboxError('NETWORK_ERROR', $errMsg, 0);
-        }
-        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
-        if ($status >= 400) {
-            throw $this->errorFrom($status, $resp, '');
-        }
-        return self::unwrap($resp);
     }
 
     /** Verify an inbound webhook signature; returns the decoded event or throws. */
@@ -438,23 +388,5 @@ class WebhooksResourceExt extends \Zatabox\Resources\WebhooksResource
     public function verify($payload, $signatureHeader, $secret, $toleranceSec = 300)
     {
         return $this->c->verifyWebhook($payload, $signatureHeader, $secret, $toleranceSec);
-    }
-}
-
-/** MediaResource + multipart upload. */
-class MediaResourceExt extends \Zatabox\Resources\MediaResource
-{
-    /** @var Client */
-    private $c;
-
-    public function __construct(Client $client)
-    {
-        parent::__construct($client);
-        $this->c = $client;
-    }
-
-    public function upload($file, array $opts = [])
-    {
-        return $this->c->upload($file, $opts);
     }
 }

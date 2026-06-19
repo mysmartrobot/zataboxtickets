@@ -8,7 +8,6 @@ import time
 import uuid
 import hmac
 import hashlib
-import mimetypes
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -150,42 +149,6 @@ class Transport:
                     continue
                 raise last_err
         raise last_err
-
-    def upload(self, file, filename="upload.bin", content_type=None, field="file", fields=None):
-        """multipart/form-data upload for POST /media/upload."""
-        if content_type is None:
-            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        boundary = "----zatabox%s" % uuid.uuid4().hex
-        crlf = b"\r\n"
-        body = []
-        for key, val in (fields or {}).items():
-            body.append(("--" + boundary).encode())
-            body.append(('Content-Disposition: form-data; name="%s"' % key).encode())
-            body.append(b"")
-            body.append(str(val).encode())
-        body.append(("--" + boundary).encode())
-        body.append(
-            ('Content-Disposition: form-data; name="%s"; filename="%s"' % (field, filename)).encode()
-        )
-        body.append(("Content-Type: %s" % content_type).encode())
-        body.append(b"")
-        body.append(file if isinstance(file, (bytes, bytearray)) else bytes(file))
-        body.append(("--" + boundary + "--").encode())
-        body.append(b"")
-        data = crlf.join(body)
-        hdrs = {
-            "Authorization": "Bearer %s" % self.token,
-            "User-Agent": self.user_agent,
-            "Accept": "application/json",
-            "Content-Type": "multipart/form-data; boundary=%s" % boundary,
-        }
-        req = Request(self._url("/api/v1/media/upload"), data=data, headers=hdrs, method="POST")
-        try:
-            with urlopen(req, timeout=self.timeout) as resp:
-                return _unwrap(resp.read())
-        except HTTPError as err:
-            body_bytes = err.read()
-            raise _error_from(err.code, _safe_json(body_bytes), body_bytes, err.headers)
 
     def paginate(self, list_fn, query=None):
         """Yield each page of a cursor list, following either cursor shape."""

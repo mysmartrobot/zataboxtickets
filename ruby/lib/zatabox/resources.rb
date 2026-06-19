@@ -4,28 +4,38 @@
 # Regenerate with: node scripts/generate.mjs
 module Zatabox
   module Resources
-    # Auth Registration, password + passwordless sign-in, token refresh, 2FA and verification.
+    # Auth Account registration, password + passwordless sign-in, 2FA login and token refresh.
     class Auth
       def initialize(client)
         @client = client
       end
 
-      # Register a new user with email + password.
+      # Register an account; returns the user plus an accessToken/refreshToken pair.
       def register(body = nil, opts = {})
         @client.request("POST", "/api/v1/auth/register", body: body, **opts)
       end
 
-      # Sign in with email + password; returns the JWT pair (or a 2FA challenge).
+      # Log in with email + password; returns a JWT pair (or a 2FA challenge).
       def login(body = nil, opts = {})
         @client.request("POST", "/api/v1/auth/login", body: body, **opts)
       end
 
-      # Complete a login that returned a 2FA challenge.
+      # Complete a 2FA login challenge; returns the JWT pair.
       def login_verify2fa(body = nil, opts = {})
         @client.request("POST", "/api/v1/auth/2fa-verify", body: body, **opts)
       end
 
-      # Exchange a refresh token for a fresh access/refresh pair.
+      # Passwordless: email a buyer a 6-digit login code.
+      def request_token(body = nil, opts = {})
+        @client.request("POST", "/api/v1/auth/token/request", body: body, **opts)
+      end
+
+      # Passwordless: exchange email + 6-digit code for a JWT pair.
+      def exchange_token(body = nil, opts = {})
+        @client.request("POST", "/api/v1/auth/token/exchange", body: body, **opts)
+      end
+
+      # Refresh an expired access token (rotates the refresh token).
       def refresh(body = nil, opts = {})
         @client.request("POST", "/api/v1/auth/refresh", body: body, **opts)
       end
@@ -35,56 +45,6 @@ module Zatabox
         @client.request("POST", "/api/v1/auth/logout", body: body, **opts)
       end
 
-      # Email a password-reset link.
-      def forgot_password(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/forgot-password", body: body, **opts)
-      end
-
-      # Set a new password using a reset token.
-      def reset_password(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/reset-password", body: body, **opts)
-      end
-
-      # Passwordless: email a 6-digit login code.
-      def request_token(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/token/request", body: body, **opts)
-      end
-
-      # Passwordless: swap an emailed code for the JWT pair.
-      def exchange_token(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/token/exchange", body: body, **opts)
-      end
-
-      # Verify a one-time passcode.
-      def verify_otp(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/verify-otp", body: body, **opts)
-      end
-
-      # Confirm an email address from a verification token.
-      def verify_email(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/verify-email", body: body, **opts)
-      end
-
-      # Confirm a phone number from an SMS code.
-      def verify_phone(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/verify-phone", body: body, **opts)
-      end
-
-      # Sign in with a third-party OAuth identity token.
-      def login_oauth(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/login/oauth", body: body, **opts)
-      end
-
-      # Begin enrolling TOTP two-factor auth.
-      def enable2fa(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/2fa/enable", body: body, **opts)
-      end
-
-      # Confirm a TOTP code to finish 2FA enrollment.
-      def verify2fa(body = nil, opts = {})
-        @client.request("POST", "/api/v1/auth/2fa/verify", body: body, **opts)
-      end
-
       private
 
       def enc(value)
@@ -92,332 +52,30 @@ module Zatabox
       end
     end
 
-    # Users (Buyer) The authenticated account: profile, wallet, tickets, orders, refunds, reports, messaging and notifications.
-    class Users
-      def initialize(client)
-        @client = client
-      end
-
-      # Current user profile.
-      def me(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me", query: query, **opts)
-      end
-
-      # Update the current user profile.
-      def update_me(body = nil, opts = {})
-        @client.request("PUT", "/api/v1/users/me", body: body, **opts)
-      end
-
-      # List the buyer's orders.
-      def orders(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/orders", query: query, **opts)
-      end
-
-      # List the buyer's tickets across all organizers.
-      def tickets(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/tickets", query: query, **opts)
-      end
-
-      # Close the account.
-      def delete_account(body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/users/me", body: body, **opts)
-      end
-
-      # Change the account password.
-      def change_password(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/password", body: body, **opts)
-      end
-
-      # Recent account activity.
-      def activity(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/activity", query: query, **opts)
-      end
-
-      # Last-login metadata.
-      def login_info(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/login-info", query: query, **opts)
-      end
-
-      # Whether 2FA is enabled.
-      def twofa_status(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/2fa/status", query: query, **opts)
-      end
-
-      # Start 2FA setup (returns the TOTP secret/QR).
-      def twofa_setup(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/2fa/setup", body: body, **opts)
-      end
-
-      # Enable 2FA after verifying a code.
-      def twofa_enable(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/2fa/enable", body: body, **opts)
-      end
-
-      # Disable 2FA.
-      def twofa_disable(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/2fa/disable", body: body, **opts)
-      end
-
-      # Submit a refund request for a ticket.
-      def create_refund(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/refunds", body: body, **opts)
-      end
-
-      # List the buyer's refund requests.
-      def refunds(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/refunds", query: query, **opts)
-      end
-
-      # Withdraw a pending refund request.
-      def withdraw_refund(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/refunds/" + enc(id) + "/withdraw", body: body, **opts)
-      end
-
-      # File a report against an event or organizer.
-      def create_report(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/reports", body: body, **opts)
-      end
-
-      # List the buyer's filed reports.
-      def reports(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/reports", query: query, **opts)
-      end
-
-      # Message threads with organizers.
-      def messages(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/messages", query: query, **opts)
-      end
-
-      # A single message thread.
-      def message_thread(thread_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/messages/" + enc(thread_id), query: query, **opts)
-      end
-
-      # Message the organizer of a ticket.
-      def send_ticket_message(ticket_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/tickets/" + enc(ticket_id) + "/message", body: body, **opts)
-      end
-
-      # In-app notifications.
-      def notifications(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/notifications", query: query, **opts)
-      end
-
-      # Count of unread notifications.
-      def notifications_unread_count(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/notifications/unread-count", query: query, **opts)
-      end
-
-      # Mark notifications as read.
-      def mark_notifications_read(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/notifications/read", body: body, **opts)
-      end
-
-      # Update the account avatar.
-      def update_avatar(body = nil, opts = {})
-        @client.request("PUT", "/api/v1/users/me/avatar", body: body, **opts)
-      end
-
-      # Update notification preferences.
-      def update_notification_settings(body = nil, opts = {})
-        @client.request("PUT", "/api/v1/users/me/notifications/settings", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Saved searches The buyer's saved discovery searches.
-    class SavedSearches
-      def initialize(client)
-        @client = client
-      end
-
-      # List saved searches.
-      def list(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/saved-searches", query: query, **opts)
-      end
-
-      # Save a search.
-      def create(body = nil, opts = {})
-        @client.request("POST", "/api/v1/users/me/saved-searches", body: body, **opts)
-      end
-
-      # Delete a saved search.
-      def delete(id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/users/me/saved-searches/" + enc(id), body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Data export GDPR-style export of the account's data.
-    class DataExport
-      def initialize(client)
-        @client = client
-      end
-
-      # Export all of the account's data.
-      def get(query = nil, opts = {})
-        @client.request("GET", "/api/v1/users/me/export", query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Events (Public) Public event discovery rails and per-event read panels.
+    # Events (Public) Public event discovery and read, plus external ticket issuance.
     class Events
       def initialize(client)
         @client = client
       end
 
-      # List / search public events (cursor-paginated).
+      # List and search published public events (cursor-paginated).
       def list(query = nil, opts = {})
         @client.request("GET", "/api/v1/events", query: query, **opts)
       end
 
-      # Trending events.
-      def trending(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/trending", query: query, **opts)
-      end
-
-      # Event categories with counts.
-      def categories(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/categories", query: query, **opts)
-      end
-
-      # Events near a lat/lng or city.
-      def nearby(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/nearby", query: query, **opts)
-      end
-
-      # Recently published events.
-      def new_this_week(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/new-this-week", query: query, **opts)
-      end
-
-      # Events with sales ending soon.
-      def ending_soon(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/ending-soon", query: query, **opts)
-      end
-
-      # Free events.
-      def free(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/free", query: query, **opts)
-      end
-
-      # Personalized recommendations.
-      def recommended(query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/recommended", query: query, **opts)
-      end
-
-      # An event's session schedule.
-      def schedule(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/" + enc(id) + "/schedule", query: query, **opts)
-      end
-
-      # Public organizer profile for an event.
-      def organizer(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/" + enc(id) + "/organizer", query: query, **opts)
-      end
-
-      # An event's FAQ.
-      def faq(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/" + enc(id) + "/faq", query: query, **opts)
-      end
-
-      # Related events.
-      def related(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/events/" + enc(id) + "/related", query: query, **opts)
-      end
-
-      # Register interest in an event.
-      def express_interest(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/events/" + enc(id) + "/interest", body: body, **opts)
-      end
-
-      # Externally issue a ticket for an event (integrator mode).
-      def issue(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/events/" + enc(event_id) + "/issue", body: body, **opts)
-      end
-
-      # Get a public event by slug.
+      # Event detail by slug (organizer info, schedule, active ticket types).
       def get(slug, query = nil, opts = {})
         @client.request("GET", "/api/v1/events/" + enc(slug), query: query, **opts)
       end
 
-      # List an event's purchasable ticket types.
+      # List an event's ticket types with live availability.
       def tickets(id, query = nil, opts = {})
         @client.request("GET", "/api/v1/events/" + enc(id) + "/tickets", query: query, **opts)
       end
 
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Tickets Ticket QR/PDF, peer-to-peer transfers, promo validation and wallet passes.
-    class Tickets
-      def initialize(client)
-        @client = client
-      end
-
-      # Validate a promo code against a cart.
-      def validate_promo(body = nil, opts = {})
-        @client.request("POST", "/api/v1/tickets/promo/validate", body: body, **opts)
-      end
-
-      # Current rotating QR payload for a ticket (JSON).
-      def qr(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/tickets/" + enc(id) + "/qr", query: query, **opts)
-      end
-
-      # Ticket PDF (application/pdf bytes).
-      def pdf(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/tickets/" + enc(id) + "/pdf", query: query, raw: true, **opts)
-      end
-
-      # Initiate a peer-to-peer transfer; the recipient gets a claim link.
-      def transfer(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/tickets/" + enc(id) + "/transfer", body: body, **opts)
-      end
-
-      # Revoke a still-pending transfer (initiator only).
-      def revoke_transfer(transfer_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/tickets/transfers/" + enc(transfer_id) + "/revoke", body: body, **opts)
-      end
-
-      # Inspect a pending transfer by claim token.
-      def get_transfer(token, query = nil, opts = {})
-        @client.request("GET", "/api/v1/tickets/transfers/claim/" + enc(token), query: query, **opts)
-      end
-
-      # Claim a transfer; rewrites the ticket holder to the recipient.
-      def claim_transfer(token, body = nil, opts = {})
-        @client.request("POST", "/api/v1/tickets/transfers/claim/" + enc(token), body: body, **opts)
-      end
-
-      # Google/Apple wallet 'Save to Wallet' link (JSON).
-      def wallet_pass(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/tickets/" + enc(id) + "/wallet-pass", query: query, **opts)
-      end
-
-      # List ticket types for an event (legacy /ticket-types mount).
-      def list_by_event(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/tickets/" + enc(event_id), query: query, **opts)
+      # Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets).
+      def issue(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/events/" + enc(event_id) + "/issue", body: body, **opts)
       end
 
       private
@@ -427,298 +85,15 @@ module Zatabox
       end
     end
 
-    # Orders Carted checkout: create, pay, cancel, invoice.
-    class Orders
-      def initialize(client)
-        @client = client
-      end
-
-      # Create an order (reserves inventory).
-      def create(body = nil, opts = {})
-        @client.request("POST", "/api/v1/orders", body: body, **opts)
-      end
-
-      # Order detail.
-      def get(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/orders/" + enc(id), query: query, **opts)
-      end
-
-      # Cancel an order and release its hold.
-      def cancel(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/orders/" + enc(id) + "/cancel", body: body, **opts)
-      end
-
-      # Initiate payment for an order (nowpayments | paystack | flutterwave).
-      def pay(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/orders/" + enc(id) + "/pay", body: body, **opts)
-      end
-
-      # Order receipt PDF (application/pdf bytes).
-      def invoice(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/orders/" + enc(id) + "/invoice", query: query, raw: true, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Payments Payment intent creation, verification, method discovery, and inbound provider webhooks.
-    class Payments
-      def initialize(client)
-        @client = client
-      end
-
-      # Confirm a charge with the provider and complete the order (idempotent).
-      def verify(body = nil, opts = {})
-        @client.request("POST", "/api/v1/payments/verify", body: body, **opts)
-      end
-
-      # Payment status for an order.
-      def get(order_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/payments/" + enc(order_id), query: query, **opts)
-      end
-
-      # Create a payment intent.
-      def initiate(body = nil, opts = {})
-        @client.request("POST", "/api/v1/payments/initiate", body: body, **opts)
-      end
-
-      # Available payment methods for a currency.
-      def methods(query = nil, opts = {})
-        @client.request("GET", "/api/v1/payments/methods", query: query, **opts)
-      end
-
-      # Supported crypto currencies (NOWPayments).
-      def crypto_currencies(query = nil, opts = {})
-        @client.request("GET", "/api/v1/payments/crypto/currencies", query: query, **opts)
-      end
-
-      # Inbound NOWPayments webhook (provider callback; not for client use).
-      def webhook_nowpayments(body = nil, opts = {})
-        @client.request("POST", "/api/v1/payments/webhook/nowpayments", body: body, **opts)
-      end
-
-      # Inbound Paystack webhook (provider callback; not for client use).
-      def webhook_paystack(body = nil, opts = {})
-        @client.request("POST", "/api/v1/payments/webhook/paystack", body: body, **opts)
-      end
-
-      # Inbound Flutterwave webhook (provider callback; not for client use).
-      def webhook_flutterwave(body = nil, opts = {})
-        @client.request("POST", "/api/v1/payments/webhook/flutterwave", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Check-in Gate scanning, offline manifests, batch sync, live stats and CSV export.
-    class Checkin
-      def initialize(client)
-        @client = client
-      end
-
-      # Validate a QR / short-code ticket at a gate.
-      def scan(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin/scan", body: body, **opts)
-      end
-
-      # Flush a queue of scans captured offline.
-      def batch(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin/batch", body: body, **opts)
-      end
-
-      # Manually check in an attendee.
-      def manual(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin/event/" + enc(id) + "/manual", body: body, **opts)
-      end
-
-      # Offline manifest (ticket hashes + statuses); pass ?since for a delta.
-      def manifest(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/manifest", query: query, **opts)
-      end
-
-      # Live check-in stats snapshot.
-      def stats(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/stats", query: query, **opts)
-      end
-
-      # Register a scanning device.
-      def register_device(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin/device/register", body: body, **opts)
-      end
-
-      # Server-Sent Events stream of live check-in stats. (SSE returns the stream URL)
-      def live_url(id, query = nil)
-        @client.url("/api/v1/checkin/event/" + enc(id) + "/live", query)
-      end
-
-      # Per-gate check-in stats.
-      def gate(id, gate, query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/gate/" + enc(gate), query: query, **opts)
-      end
-
-      # Check-in log CSV (text/csv bytes).
-      def export(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/export", query: query, raw: true, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Scanner-token check-in Passwordless gate scanning using a short-lived scanner token (the /scan kiosk surface).
-    class Scan
-      def initialize(client)
-        @client = client
-      end
-
-      # Exchange a scanner token for a scoped session.
-      def exchange(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin-token/exchange", body: body, **opts)
-      end
-
-      # Current scanner session (event + gate context).
-      def session(query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin-token/me", query: query, **opts)
-      end
-
-      # Validate a ticket with the scanner session.
-      def scan(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin-token/scan", body: body, **opts)
-      end
-
-      # Offline manifest for the scanner session.
-      def manifest(query = nil, opts = {})
-        @client.request("GET", "/api/v1/checkin-token/manifest", query: query, **opts)
-      end
-
-      # Flush offline scans for the scanner session.
-      def batch(body = nil, opts = {})
-        @client.request("POST", "/api/v1/checkin-token/batch", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Search Full-text + faceted event search.
-    class Search
-      def initialize(client)
-        @client = client
-      end
-
-      # Full-text + faceted search.
-      def query(query = nil, opts = {})
-        @client.request("GET", "/api/v1/search", query: query, **opts)
-      end
-
-      # Type-ahead suggestions.
-      def suggest(query = nil, opts = {})
-        @client.request("GET", "/api/v1/search/suggest", query: query, **opts)
-      end
-
-      # Trending search terms.
-      def trending(query = nil, opts = {})
-        @client.request("GET", "/api/v1/search/trending", query: query, **opts)
-      end
-
-      # Popular searches in a city.
-      def popular(city, query = nil, opts = {})
-        @client.request("GET", "/api/v1/search/popular/" + enc(city), query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Media Image/asset uploads and the stable /media/:id resolver.
-    class Media
-      def initialize(client)
-        @client = client
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Organizer Authenticated organizer surface: organizations, members, events, ticket types, schedules, sections, promo codes, attendees, payouts, refunds, reports and messaging.
+    # Organizer Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
     class Organizer
       def initialize(client)
         @client = client
       end
 
-      # Bootstrap an organizer account + first organization.
-      def setup(body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/setup", body: body, **opts)
-      end
-
-      # Current organizer context (orgs + memberships).
-      def me(query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/me", query: query, **opts)
-      end
-
-      # Create an organization.
-      def create_organization(body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/organizations", body: body, **opts)
-      end
-
-      # Organization detail.
-      def get_organization(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/organizations/" + enc(org_id), query: query, **opts)
-      end
-
-      # Update an organization.
-      def update_organization(org_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/organizations/" + enc(org_id), body: body, **opts)
-      end
-
-      # Change an organization's status.
-      def set_organization_status(org_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/organizations/" + enc(org_id) + "/status", body: body, **opts)
-      end
-
-      # List organization members.
-      def members(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/organizations/" + enc(org_id) + "/members", query: query, **opts)
-      end
-
-      # Invite a member.
-      def invite(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/organizations/" + enc(org_id) + "/invites", body: body, **opts)
-      end
-
-      # Resend a member invite.
-      def resend_invite(org_id, member_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/organizations/" + enc(org_id) + "/invites/" + enc(member_id) + "/resend", body: body, **opts)
-      end
-
-      # Remove a member.
-      def remove_member(org_id, member_id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/organizations/" + enc(org_id) + "/members/" + enc(member_id), body: body, **opts)
-      end
-
-      # List the organizer's events.
-      def events(query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events", query: query, **opts)
+      # Get organization details and per-currency wallet balances.
+      def get_organization(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/organizer/organizations/" + enc(id), query: query, **opts)
       end
 
       # Create a draft event.
@@ -726,19 +101,9 @@ module Zatabox
         @client.request("POST", "/api/v1/organizer/events", body: body, **opts)
       end
 
-      # Organizer event detail.
-      def get_event(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events/" + enc(id), query: query, **opts)
-      end
-
-      # Update an event.
+      # Partial-update an event.
       def update_event(id, body = nil, opts = {})
         @client.request("PUT", "/api/v1/organizer/events/" + enc(id), body: body, **opts)
-      end
-
-      # Change an event's status.
-      def set_event_status(id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/status", body: body, **opts)
       end
 
       # Publish a draft event.
@@ -751,14 +116,9 @@ module Zatabox
         @client.request("POST", "/api/v1/organizer/events/" + enc(id) + "/unpublish", body: body, **opts)
       end
 
-      # Cancel/delete an event.
+      # Cancel an event.
       def delete_event(id, body = nil, opts = {})
         @client.request("DELETE", "/api/v1/organizer/events/" + enc(id), body: body, **opts)
-      end
-
-      # List an event's ticket types.
-      def tickets(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/tickets", query: query, **opts)
       end
 
       # Create a ticket type.
@@ -766,17 +126,7 @@ module Zatabox
         @client.request("POST", "/api/v1/organizer/events/" + enc(id) + "/tickets", body: body, **opts)
       end
 
-      # Update a ticket type.
-      def update_ticket(id, tid, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/tickets/" + enc(tid), body: body, **opts)
-      end
-
-      # Delete a ticket type.
-      def delete_ticket(id, tid, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/tickets/" + enc(tid), body: body, **opts)
-      end
-
-      # List schedule sessions.
+      # List schedule sessions (running order).
       def schedule(id, query = nil, opts = {})
         @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/schedule", query: query, **opts)
       end
@@ -787,36 +137,36 @@ module Zatabox
       end
 
       # Update a schedule session.
-      def update_schedule(id, sid, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sid), body: body, **opts)
+      def update_schedule(id, session_id, body = nil, opts = {})
+        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(session_id), body: body, **opts)
       end
 
       # Delete a schedule session.
-      def delete_schedule(id, sid, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(sid), body: body, **opts)
+      def delete_schedule(id, session_id, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/schedule/" + enc(session_id), body: body, **opts)
       end
 
-      # List seating/venue sections.
+      # List seating/capacity sections.
       def sections(id, query = nil, opts = {})
         @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/sections", query: query, **opts)
       end
 
-      # Add a section.
+      # Add a seating section.
       def create_section(id, body = nil, opts = {})
         @client.request("POST", "/api/v1/organizer/events/" + enc(id) + "/sections", body: body, **opts)
       end
 
-      # Update a section.
-      def update_section(id, sid, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sid), body: body, **opts)
+      # Update a seating section.
+      def update_section(id, section_id, body = nil, opts = {})
+        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(section_id), body: body, **opts)
       end
 
-      # Delete a section.
-      def delete_section(id, sid, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sid), body: body, **opts)
+      # Delete a seating section.
+      def delete_section(id, section_id, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(section_id), body: body, **opts)
       end
 
-      # List promo codes.
+      # List promo codes (optionally filtered by event).
       def promo_codes(query = nil, opts = {})
         @client.request("GET", "/api/v1/organizer/promo-codes", query: query, **opts)
       end
@@ -831,116 +181,11 @@ module Zatabox
         @client.request("PUT", "/api/v1/organizer/promo-codes/" + enc(id), body: body, **opts)
       end
 
-      # Delete a promo code.
+      # Delete or disable a promo code.
       def delete_promo_code(id, body = nil, opts = {})
         @client.request("DELETE", "/api/v1/organizer/promo-codes/" + enc(id), body: body, **opts)
       end
 
-      # Sales/analytics for an event.
-      def event_analytics(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/analytics", query: query, **opts)
-      end
-
-      # Attendee CRM list for an event.
-      def event_attendees(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/attendees", query: query, **opts)
-      end
-
-      # Attendee export CSV (text/csv bytes).
-      def event_export(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/export", query: query, raw: true, **opts)
-      end
-
-      # List payouts.
-      def payouts(query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/payouts", query: query, **opts)
-      end
-
-      # Payout detail.
-      def payout(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/payouts/" + enc(id), query: query, **opts)
-      end
-
-      # Request a payout.
-      def request_payout(body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/payouts/request", body: body, **opts)
-      end
-
-      # Update payout settings.
-      def update_payout_settings(body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/payout-settings", body: body, **opts)
-      end
-
-      # List refund requests for an org.
-      def refunds(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/refunds", query: query, **opts)
-      end
-
-      # Approve or deny a refund request.
-      def decide_refund(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/refunds/" + enc(id) + "/decide", body: body, **opts)
-      end
-
-      # List reports filed against an org (read-only).
-      def reports(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/reports", query: query, **opts)
-      end
-
-      # Resolve a report (admins only; organizers receive 403).
-      def resolve_report(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/reports/" + enc(id) + "/resolve", body: body, **opts)
-      end
-
-      # Org-wide buyer message threads.
-      def messages(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/messages", query: query, **opts)
-      end
-
-      # Org dashboard overview.
-      def overview(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/overview", query: query, **opts)
-      end
-
-      # Referral program summary + commissions.
-      def referral(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/referral", query: query, **opts)
-      end
-
-      # Org notifications.
-      def notifications(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/notifications", query: query, **opts)
-      end
-
-      # Top up the org wallet (returns a payment intent).
-      def fund_wallet(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/wallets/org/" + enc(org_id) + "/fund", body: body, **opts)
-      end
-
-      # Poll a wallet top-up payment.
-      def fund_wallet_status(org_id, order_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/wallets/org/" + enc(org_id) + "/fund/" + enc(order_id), query: query, **opts)
-      end
-
-      # Stored payout destinations.
-      def payout_details(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/orgs/" + enc(org_id) + "/payout-details", query: query, **opts)
-      end
-
-      # Set payout details for a currency.
-      def update_payout_details(org_id, currency, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/orgs/" + enc(org_id) + "/payout-details/" + enc(currency), body: body, **opts)
-      end
-
-      # Reply to a buyer on a ticket thread.
-      def ticket_message(ticket_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/tickets/" + enc(ticket_id) + "/message", body: body, **opts)
-      end
-
-      # A single org message thread.
-      def message_thread(thread_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/messages/" + enc(thread_id), query: query, **opts)
-      end
-
       private
 
       def enc(value)
@@ -948,30 +193,20 @@ module Zatabox
       end
     end
 
-    # Wallets Organization wallet balances and ledger.
-    class Wallets
+    # Event page customization Per-event public-page theming and the “Good to know” FAQ.
+    class EventCustomization
       def initialize(client)
         @client = client
       end
 
-      # List wallets the caller can see.
-      def list(query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/wallets", query: query, **opts)
+      # Get an event's page customization (theme, layout, FAQ, SEO).
+      def get(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/organizer/event-customization/" + enc(id), query: query, **opts)
       end
 
-      # An org's wallet balances (per currency).
-      def get(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/wallets/org/" + enc(org_id), query: query, **opts)
-      end
-
-      # Provision an org's wallet.
-      def bootstrap(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/wallets/org/" + enc(org_id) + "/bootstrap", body: body, **opts)
-      end
-
-      # Wallet ledger transactions.
-      def transactions(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/wallets/org/" + enc(org_id) + "/transactions", query: query, **opts)
+      # Update an event's page customization (incl. the FAQ list).
+      def update(id, body = nil, opts = {})
+        @client.request("PUT", "/api/v1/organizer/event-customization/" + enc(id), body: body, **opts)
       end
 
       private
@@ -981,40 +216,15 @@ module Zatabox
       end
     end
 
-    # Scanner tokens Manage short-lived gate-scanner tokens for staff devices.
-    class ScannerTokens
+    # Tickets Checkout-time ticket helpers.
+    class Tickets
       def initialize(client)
         @client = client
       end
 
-      # List scanner tokens.
-      def list(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id), query: query, **opts)
-      end
-
-      # Mint a scanner token.
-      def create(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id), body: body, **opts)
-      end
-
-      # Update a scanner token.
-      def update(org_id, token_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id) + "/" + enc(token_id), body: body, **opts)
-      end
-
-      # Revoke a scanner token.
-      def delete(org_id, token_id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id) + "/" + enc(token_id), body: body, **opts)
-      end
-
-      # Reissue a scanner token's secret.
-      def reissue(org_id, token_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id) + "/" + enc(token_id) + "/reissue", body: body, **opts)
-      end
-
-      # Usage metrics for a scanner token.
-      def metrics(org_id, token_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/scanner-tokens/org/" + enc(org_id) + "/" + enc(token_id) + "/metrics", query: query, **opts)
+      # Validate a promo code against a cart (read-only preview, does not consume a use).
+      def validate_promo(body = nil, opts = {})
+        @client.request("POST", "/api/v1/tickets/promo/validate", body: body, **opts)
       end
 
       private
@@ -1024,43 +234,261 @@ module Zatabox
       end
     end
 
-    # Integrations API keys, MCP tokens, and integration usage metrics.
+    # Orders Carted checkout: create, read, pay, cancel.
+    class Orders
+      def initialize(client)
+        @client = client
+      end
+
+      # Create an order (guest checkout needs only name + email).
+      def create(body = nil, opts = {})
+        @client.request("POST", "/api/v1/orders", body: body, **opts)
+      end
+
+      # Get an order (pass ?token for guest reads).
+      def get(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/orders/" + enc(id), query: query, **opts)
+      end
+
+      # Initiate payment (provider: nowpayments | paystack | flutterwave).
+      def pay(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/orders/" + enc(id) + "/pay", body: body, **opts)
+      end
+
+      # Cancel an unpaid order and release held inventory.
+      def cancel(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/orders/" + enc(id) + "/cancel", body: body, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Payments Verify charges, read payment status, list crypto coins.
+    class Payments
+      def initialize(client)
+        @client = client
+      end
+
+      # Actively verify a payment with the provider and issue tickets (idempotent, poll-safe).
+      def verify(body = nil, opts = {})
+        @client.request("POST", "/api/v1/payments/verify", body: body, **opts)
+      end
+
+      # Read payment/order status and attempts (read-only).
+      def get(order_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/payments/" + enc(order_id), query: query, **opts)
+      end
+
+      # List supported NOWPayments crypto coins (for the payCurrency value).
+      def crypto_currencies(query = nil, opts = {})
+        @client.request("GET", "/api/v1/payments/crypto/currencies", query: query, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Check-in Gate scanning, offline manifests + sync, live stats.
+    class Checkin
+      def initialize(client)
+        @client = client
+      end
+
+      # Validate a QR, barcode or 6-character door code at the gate.
+      def scan(body = nil, opts = {})
+        @client.request("POST", "/api/v1/checkin/scan", body: body, **opts)
+      end
+
+      # Manually check in a typed ticket code.
+      def manual(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/checkin/event/" + enc(id) + "/manual", body: body, **opts)
+      end
+
+      # Hashed guest-list manifest for offline scanning (pass ?since for a delta).
+      def manifest(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/manifest", query: query, **opts)
+      end
+
+      # Sync up to 500 queued offline scans.
+      def batch(body = nil, opts = {})
+        @client.request("POST", "/api/v1/checkin/batch", body: body, **opts)
+      end
+
+      # Check-in totals, capacity %, entry rate and per-gate breakdown.
+      def stats(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/stats", query: query, **opts)
+      end
+
+      # Per-gate check-in stats slice.
+      def gate(id, gate, query = nil, opts = {})
+        @client.request("GET", "/api/v1/checkin/event/" + enc(id) + "/gate/" + enc(gate), query: query, **opts)
+      end
+
+      # Server-Sent Events stream a stats snapshot every 2 seconds. (SSE returns the stream URL)
+      def live_url(id, query = nil)
+        @client.url("/api/v1/checkin/event/" + enc(id) + "/live", query)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Community Verified-attendee reviews, organizer follows/subscribers and event waitlists.
+    class Community
+      def initialize(client)
+        @client = client
+      end
+
+      # Review an event (checked-in ticket holders only; ticketCode + email prove attendance).
+      def submit_review(body = nil, opts = {})
+        @client.request("POST", "/api/v1/community/reviews", body: body, **opts)
+      end
+
+      # Follow an organizer (subscribe to new-event announcements).
+      def follow(org_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/community/orgs/" + enc(org_id) + "/follow", body: body, **opts)
+      end
+
+      # List an organizer's subscribers (organizer auth).
+      def followers(org_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/community/orgs/" + enc(org_id) + "/followers", query: query, **opts)
+      end
+
+      # Remove a subscriber (organizer auth).
+      def remove_follower(org_id, follower_id, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/community/orgs/" + enc(org_id) + "/followers/" + enc(follower_id), body: body, **opts)
+      end
+
+      # Join an event waitlist (offers fire on cancellations).
+      def join_waitlist(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/community/events/" + enc(event_id) + "/waitlist", body: body, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Growth (Organizer) Comp tickets, CSV import, broadcasts and attendee tags.
+    class Growth
+      def initialize(client)
+        @client = client
+      end
+
+      # Bulk-mint and email complimentary tickets.
+      def mint_comps(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps", body: body, **opts)
+      end
+
+      # Import attendees (comp tickets) from CSV.
+      def import_comps_csv(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps/import-csv", body: body, **opts)
+      end
+
+      # Email a broadcast to an event's attendees (replies thread to the organizer inbox).
+      def broadcast_event(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/broadcast", body: body, **opts)
+      end
+
+      # Tag attendees (additive; powers broadcast filters and CRM segments).
+      def add_tags(body = nil, opts = {})
+        @client.request("POST", "/api/v1/organizer/growth/tags", body: body, **opts)
+      end
+
+      # Remove an attendee tag.
+      def remove_tag(body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/organizer/growth/tags", body: body, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Buyers The authenticated buyer: profile, ticket wallet, data export, refunds, reports and organizer messaging.
+    class Users
+      def initialize(client)
+        @client = client
+      end
+
+      # Current buyer profile.
+      def me(query = nil, opts = {})
+        @client.request("GET", "/api/v1/users/me", query: query, **opts)
+      end
+
+      # The buyer's ticket wallet (cursor-paginated).
+      def tickets(query = nil, opts = {})
+        @client.request("GET", "/api/v1/users/me/tickets", query: query, **opts)
+      end
+
+      # GDPR data export one JSON download of everything on the account.
+      def export(query = nil, opts = {})
+        @client.request("GET", "/api/v1/users/me/export", query: query, **opts)
+      end
+
+      # Request a refund for a ticket.
+      def create_refund(body = nil, opts = {})
+        @client.request("POST", "/api/v1/users/me/refunds", body: body, **opts)
+      end
+
+      # File a report against an event or organizer.
+      def create_report(body = nil, opts = {})
+        @client.request("POST", "/api/v1/users/me/reports", body: body, **opts)
+      end
+
+      # The buyer's message threads with organizers.
+      def messages(query = nil, opts = {})
+        @client.request("GET", "/api/v1/users/me/messages", query: query, **opts)
+      end
+
+      # Message the organizer about a ticket (rate-limited).
+      def send_ticket_message(ticket_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/users/me/tickets/" + enc(ticket_id) + "/message", body: body, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # API keys Manage your organization's own API keys (organizer owner/admin auth).
     class Integrations
       def initialize(client)
         @client = client
       end
 
-      # Integration usage metrics.
-      def metrics(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/metrics", query: query, **opts)
-      end
-
-      # Recent API call log.
-      def api_calls(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-calls", query: query, **opts)
-      end
-
-      # Recent MCP tool-call log.
-      def mcp_calls(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/mcp-calls", query: query, **opts)
-      end
-
-      # List API keys.
-      def list_api_keys(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys", query: query, **opts)
-      end
-
-      # Mint an API key (plaintext returned once).
+      # Create an API key (plaintext secret returned exactly once).
       def create_api_key(org_id, body = nil, opts = {})
         @client.request("POST", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys", body: body, **opts)
       end
 
-      # Update an API key (scopes, status, allowlist).
+      # List API keys (prefixes and metadata only, never the secret).
+      def list_api_keys(org_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys", query: query, **opts)
+      end
+
+      # Update a key (rename, pause, re-scope).
       def update_api_key(org_id, key_id, body = nil, opts = {})
         @client.request("PUT", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys/" + enc(key_id), body: body, **opts)
       end
 
-      # Rotate an API key's secret.
+      # Rotate a key's secret (new secret returned once; old one invalidated).
       def rotate_api_key(org_id, key_id, body = nil, opts = {})
         @client.request("POST", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys/" + enc(key_id) + "/rotate", body: body, **opts)
       end
@@ -1070,26 +498,6 @@ module Zatabox
         @client.request("DELETE", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/api-keys/" + enc(key_id), body: body, **opts)
       end
 
-      # List MCP tokens.
-      def list_mcp_tokens(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/mcp-tokens", query: query, **opts)
-      end
-
-      # Mint an MCP token.
-      def create_mcp_token(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/mcp-tokens", body: body, **opts)
-      end
-
-      # Update an MCP token.
-      def update_mcp_token(org_id, token_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/mcp-tokens/" + enc(token_id), body: body, **opts)
-      end
-
-      # Revoke an MCP token.
-      def delete_mcp_token(org_id, token_id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/integrations/org/" + enc(org_id) + "/mcp-tokens/" + enc(token_id), body: body, **opts)
-      end
-
       private
 
       def enc(value)
@@ -1097,288 +505,20 @@ module Zatabox
       end
     end
 
-    # Event customization Per-event white-label theming.
-    class EventCustomization
-      def initialize(client)
-        @client = client
-      end
-
-      # Get an event's customization.
-      def get(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/event-customization/" + enc(event_id), query: query, **opts)
-      end
-
-      # Update an event's customization.
-      def update(event_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/organizer/event-customization/" + enc(event_id), body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Growth Comp tickets, CSV import, broadcasts and attendee tags.
-    class Growth
-      def initialize(client)
-        @client = client
-      end
-
-      # Issue complimentary tickets.
-      def mint_comps(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps", body: body, **opts)
-      end
-
-      # Bulk-issue comps from CSV.
-      def import_comps_csv(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps/import-csv", body: body, **opts)
-      end
-
-      # List issued comps.
-      def list_comps(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps", query: query, **opts)
-      end
-
-      # Resend a comp ticket email.
-      def resend_comp(event_id, ticket_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/comps/" + enc(ticket_id) + "/resend", body: body, **opts)
-      end
-
-      # Broadcast to an event's attendees.
-      def broadcast_event(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/events/" + enc(event_id) + "/broadcast", body: body, **opts)
-      end
-
-      # Broadcast to an org's followers/subscribers.
-      def broadcast_org(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/orgs/" + enc(org_id) + "/broadcast", body: body, **opts)
-      end
-
-      # List sent broadcasts.
-      def list_broadcasts(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/growth/orgs/" + enc(org_id) + "/broadcasts", query: query, **opts)
-      end
-
-      # Tag attendees (body: orgId, ticketIds, tag).
-      def add_tags(body = nil, opts = {})
-        @client.request("POST", "/api/v1/organizer/growth/tags", body: body, **opts)
-      end
-
-      # Remove a tag (body: orgId, ticketId, tag).
-      def remove_tag(body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/organizer/growth/tags", body: body, **opts)
-      end
-
-      # List tags for an org.
-      def list_tags(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/growth/orgs/" + enc(org_id) + "/tags", query: query, **opts)
-      end
-
-      # List attendees with a given tag.
-      def tag_attendees(org_id, tag, query = nil, opts = {})
-        @client.request("GET", "/api/v1/organizer/growth/orgs/" + enc(org_id) + "/tags/" + enc(tag) + "/attendees", query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Public events (vanity) Public org/event read endpoints used by hosted pages and white-label sites.
-    class PublicEvents
-      def initialize(client)
-        @client = client
-      end
-
-      # Public event by slug.
-      def get_by_slug(slug, query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/events/" + enc(slug), query: query, **opts)
-      end
-
-      # An organization's public events.
-      def org_events(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/events/orgs/by/" + enc(org_id), query: query, **opts)
-      end
-
-      # Public event by org + event id.
-      def get_by_org_event(org_id, event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/events/by/" + enc(org_id) + "/" + enc(event_id), query: query, **opts)
-      end
-
-      # Public event by id.
-      def get_by_id(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/events/by-id/" + enc(event_id), query: query, **opts)
-      end
-
-      # Draft event preview (token-gated).
-      def preview(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/events/preview/" + enc(event_id), query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Public site Sitemap, newsletter signup and platform status.
-    class Site
-      def initialize(client)
-        @client = client
-      end
-
-      # Sitemap XML (application/xml bytes).
-      def sitemap(query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/sitemap.xml", query: query, raw: true, **opts)
-      end
-
-      # Begin newsletter double-opt-in.
-      def newsletter_start(body = nil, opts = {})
-        @client.request("POST", "/api/v1/public/newsletter/start", body: body, **opts)
-      end
-
-      # Confirm a newsletter subscription.
-      def newsletter_confirm(body = nil, opts = {})
-        @client.request("POST", "/api/v1/public/newsletter", body: body, **opts)
-      end
-
-      # Platform status + incidents.
-      def status(query = nil, opts = {})
-        @client.request("GET", "/api/v1/public/status", query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Community Verified-attendee reviews, organizer follows and event waitlists.
-    class Community
-      def initialize(client)
-        @client = client
-      end
-
-      # Submit a verified-attendee review (ticketCode + email prove ownership).
-      def submit_review(body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/reviews", body: body, **opts)
-      end
-
-      # Published reviews for an org.
-      def org_reviews(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/orgs/" + enc(org_id) + "/reviews", query: query, **opts)
-      end
-
-      # Published reviews for an event.
-      def event_reviews(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/events/" + enc(event_id) + "/reviews", query: query, **opts)
-      end
-
-      # Follow an organizer.
-      def follow(org_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/orgs/" + enc(org_id) + "/follow", body: body, **opts)
-      end
-
-      # Unsubscribe via emailed token.
-      def unfollow(token, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/unfollow/" + enc(token), query: query, **opts)
-      end
-
-      # Join an event waitlist.
-      def join_waitlist(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/events/" + enc(event_id) + "/waitlist", body: body, **opts)
-      end
-
-      # Accept a waitlist offer via emailed token.
-      def accept_waitlist(id, token, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/waitlist/accept/" + enc(id) + "/" + enc(token), query: query, **opts)
-      end
-
-      # Organizer view of all reviews (incl. pending).
-      def manage_reviews(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/orgs/" + enc(org_id) + "/reviews/manage", query: query, **opts)
-      end
-
-      # Organizer reply to a review.
-      def reply_review(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/reviews/" + enc(id) + "/reply", body: body, **opts)
-      end
-
-      # Publish/hide a review.
-      def set_review_status(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/reviews/" + enc(id) + "/status", body: body, **opts)
-      end
-
-      # List an org's followers.
-      def followers(org_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/orgs/" + enc(org_id) + "/followers", query: query, **opts)
-      end
-
-      # Remove a follower.
-      def remove_follower(org_id, follower_id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/community/orgs/" + enc(org_id) + "/followers/" + enc(follower_id), body: body, **opts)
-      end
-
-      # List an event's waitlist.
-      def event_waitlist(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/community/events/" + enc(event_id) + "/waitlist", query: query, **opts)
-      end
-
-      # Offer spots to waitlisted attendees.
-      def offer_waitlist(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/community/events/" + enc(event_id) + "/waitlist/offer", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Tracking Lightweight page-view tracking.
-    class Track
-      def initialize(client)
-        @client = client
-      end
-
-      # Record a page view.
-      def view(body = nil, opts = {})
-        @client.request("POST", "/api/v1/track/view", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Webhooks Register webhook endpoints and inspect/replay deliveries. (Use client.webhooks.verify() to validate inbound signatures.)
+    # Webhooks Register webhook endpoints, manage secrets, inspect and replay deliveries. (Use webhooks.verify() to validate inbound signatures.)
     class Webhooks
       def initialize(client)
         @client = client
       end
 
-      # List subscribable event types.
-      def catalog(query = nil, opts = {})
-        @client.request("GET", "/api/v1/webhooks/catalog", query: query, **opts)
-      end
-
-      # List registered webhook endpoints.
-      def list(query = nil, opts = {})
-        @client.request("GET", "/api/v1/webhooks", query: query, **opts)
-      end
-
-      # Register a webhook endpoint.
+      # Create a webhook endpoint (signing secret returned exactly once).
       def create(body = nil, opts = {})
         @client.request("POST", "/api/v1/webhooks", body: body, **opts)
+      end
+
+      # List webhook endpoints.
+      def list(query = nil, opts = {})
+        @client.request("GET", "/api/v1/webhooks", query: query, **opts)
       end
 
       # Update a webhook endpoint.
@@ -1386,14 +526,19 @@ module Zatabox
         @client.request("PUT", "/api/v1/webhooks/" + enc(id), body: body, **opts)
       end
 
-      # Rotate a webhook signing secret.
-      def rotate_secret(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/webhooks/" + enc(id) + "/rotate-secret", body: body, **opts)
-      end
-
       # Delete a webhook endpoint.
       def delete(id, body = nil, opts = {})
         @client.request("DELETE", "/api/v1/webhooks/" + enc(id), body: body, **opts)
+      end
+
+      # Send a signed test event to the endpoint.
+      def test(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/webhooks/" + enc(id) + "/test", body: body, **opts)
+      end
+
+      # Rotate the signing secret (new secret returned once).
+      def rotate_secret(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/webhooks/" + enc(id) + "/rotate-secret", body: body, **opts)
       end
 
       # List delivery attempts for an endpoint.
@@ -1401,153 +546,14 @@ module Zatabox
         @client.request("GET", "/api/v1/webhooks/" + enc(id) + "/deliveries", query: query, **opts)
       end
 
-      # Send a test event to an endpoint.
-      def test(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/webhooks/" + enc(id) + "/test", body: body, **opts)
-      end
-
       # Replay a past delivery.
       def replay(id, body = nil, opts = {})
         @client.request("POST", "/api/v1/webhooks/deliveries/" + enc(id) + "/replay", body: body, **opts)
       end
 
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # White-label Self-contained white-label surface: events, ticket types, customization, orders, tickets and check-in under one integration.
-    class WhiteLabel
-      def initialize(client)
-        @client = client
-      end
-
-      # The integration's white-label context.
-      def me(query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/me", query: query, **opts)
-      end
-
-      # List white-label events.
-      def events(query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/events", query: query, **opts)
-      end
-
-      # Create a white-label event.
-      def create_event(body = nil, opts = {})
-        @client.request("POST", "/api/v1/white-label/events", body: body, **opts)
-      end
-
-      # White-label event detail.
-      def get_event(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/events/" + enc(id), query: query, **opts)
-      end
-
-      # Update a white-label event.
-      def update_event(id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/white-label/events/" + enc(id), body: body, **opts)
-      end
-
-      # Delete a white-label event.
-      def delete_event(id, body = nil, opts = {})
-        @client.request("DELETE", "/api/v1/white-label/events/" + enc(id), body: body, **opts)
-      end
-
-      # List ticket types.
-      def ticket_types(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/events/" + enc(event_id) + "/ticket-types", query: query, **opts)
-      end
-
-      # Create a ticket type.
-      def create_ticket_type(event_id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/white-label/events/" + enc(event_id) + "/ticket-types", body: body, **opts)
-      end
-
-      # Get event customization.
-      def get_customization(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/events/" + enc(event_id) + "/customization", query: query, **opts)
-      end
-
-      # Update event customization.
-      def update_customization(event_id, body = nil, opts = {})
-        @client.request("PUT", "/api/v1/white-label/events/" + enc(event_id) + "/customization", body: body, **opts)
-      end
-
-      # List white-label orders.
-      def orders(query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/orders", query: query, **opts)
-      end
-
-      # List white-label tickets.
-      def tickets(query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/tickets", query: query, **opts)
-      end
-
-      # Validate a ticket at a white-label gate.
-      def checkin_scan(body = nil, opts = {})
-        @client.request("POST", "/api/v1/white-label/checkin/scan", body: body, **opts)
-      end
-
-      # White-label check-in stats.
-      def checkin_stats(event_id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/checkin/stats/" + enc(event_id), query: query, **opts)
-      end
-
-      # White-label wallet balances.
-      def wallets(query = nil, opts = {})
-        @client.request("GET", "/api/v1/white-label/wallets", query: query, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Support Support tickets and threaded messages.
-    class Support
-      def initialize(client)
-        @client = client
-      end
-
-      # List support tickets.
-      def list(query = nil, opts = {})
-        @client.request("GET", "/api/v1/support", query: query, **opts)
-      end
-
-      # Open a support ticket.
-      def create(body = nil, opts = {})
-        @client.request("POST", "/api/v1/support", body: body, **opts)
-      end
-
-      # Support ticket detail.
-      def get(id, query = nil, opts = {})
-        @client.request("GET", "/api/v1/support/" + enc(id), query: query, **opts)
-      end
-
-      # Reply on a support ticket.
-      def send_message(id, body = nil, opts = {})
-        @client.request("POST", "/api/v1/support/" + enc(id) + "/messages", body: body, **opts)
-      end
-
-      private
-
-      def enc(value)
-        Zatabox.encode(value)
-      end
-    end
-
-    # Utilities Helper endpoints.
-    class Util
-      def initialize(client)
-        @client = client
-      end
-
-      # Resolve an address to coordinates.
-      def resolve_coords(body = nil, opts = {})
-        @client.request("POST", "/api/v1/util/resolve-coords", body: body, **opts)
+      # List every subscribable event type (no auth).
+      def catalog(query = nil, opts = {})
+        @client.request("GET", "/api/v1/webhooks/catalog", query: query, **opts)
       end
 
       private
@@ -1560,31 +566,18 @@ module Zatabox
     # ns symbol => resource class
     REGISTRY = {
       auth: Auth,
-      users: Users,
-      saved_searches: SavedSearches,
-      data_export: DataExport,
       events: Events,
+      organizer: Organizer,
+      event_customization: EventCustomization,
       tickets: Tickets,
       orders: Orders,
       payments: Payments,
       checkin: Checkin,
-      scan: Scan,
-      search: Search,
-      media: Media,
-      organizer: Organizer,
-      wallets: Wallets,
-      scanner_tokens: ScannerTokens,
-      integrations: Integrations,
-      event_customization: EventCustomization,
-      growth: Growth,
-      public_events: PublicEvents,
-      site: Site,
       community: Community,
-      track: Track,
+      growth: Growth,
+      users: Users,
+      integrations: Integrations,
       webhooks: Webhooks,
-      white_label: WhiteLabel,
-      support: Support,
-      util: Util,
     }.freeze
   end
 end

@@ -22,6 +22,13 @@ function check($cond, $msg)
     }
 }
 
+// Every namespace the publicly-documented SDK exposes.
+$publicNs = ['auth', 'events', 'organizer', 'eventCustomization', 'tickets', 'orders',
+    'payments', 'checkin', 'community', 'growth', 'users', 'integrations', 'webhooks'];
+// Internal/undocumented surfaces that must NEVER ship in a public SDK.
+$forbiddenNs = ['admin', 'media', 'whiteLabel', 'wallets', 'scannerTokens', 'support',
+    'util', 'track', 'site', 'savedSearches', 'publicEvents', 'scan', 'search', 'dataExport'];
+
 // Base URL routing (no network)
 check((new Client(['apiKey' => 'vt_test_x']))->baseUrl === 'https://sandbox.zatabox.com', 'sandbox routing');
 check((new Client(['apiKey' => 'vt_live_x']))->baseUrl === 'https://api.zatabox.com', 'live routing');
@@ -41,14 +48,18 @@ check(Client::enc('a/b c') === 'a%2Fb%20c', 'path-segment encoding');
 
 $z = new Client(['apiKey' => 'vt_live_x', 'baseUrl' => $base]);
 
-// Namespaces present
-check(is_object($z->events) && method_exists($z->events, 'list'), 'events.list present');
+// Documented namespaces present
+foreach ($publicNs as $ns) {
+    check(is_object($z->{$ns}), "namespace present: $ns");
+}
+check(method_exists($z->events, 'list'), 'events.list present');
 check(method_exists($z->webhooks, 'verify'), 'webhooks.verify present');
-check(method_exists($z->media, 'upload'), 'media.upload present');
 check(method_exists($z->checkin, 'liveUrl'), 'checkin.liveUrl present');
-check(is_object($z->whiteLabel) && is_object($z->savedSearches) && is_object($z->support), 'idiomatic namespaces present');
-// Platform administration must NOT be exposed in this public SDK.
-check(!property_exists($z, 'admin') && !isset($z->admin), 'admin namespace is NOT exposed');
+
+// Undocumented / internal namespaces must NOT be exposed.
+foreach ($forbiddenNs as $ns) {
+    check(!property_exists($z, $ns) && !isset($z->{$ns}), "forbidden namespace absent: $ns");
+}
 
 // GET unwrap + query + auth header
 $data = $z->events->list(['limit' => 20, 'category' => 'music']);
@@ -81,10 +92,6 @@ try {
     check($e->errorCode === 'RATE_LIMITED' && ($e->details['retryAfter'] ?? null) === 30, 'rate limited + retryAfter');
 }
 
-// Binary
-$pdf = $z->tickets->pdf('5');
-check($pdf['data'] === '%PDF' && $pdf['contentType'] === 'application/pdf' && $pdf['filename'] === 't.pdf', 'binary download');
-
 // Pagination
 $ids = [];
 foreach ($z->paginate([$z->events, 'list'], ['limit' => 10]) as $page) {
@@ -115,11 +122,6 @@ try {
 } catch (ZataboxError $e) {
     check($e->errorCode === 'MISSING_SIGNATURE', 'webhook missing signature');
 }
-
-// Multipart upload round-trip (hand-rolled boundary)
-$up = $z->media->upload('PNGDATA', ['filename' => 'cover.png', 'contentType' => 'image/png', 'fields' => ['caption' => 'hi']]);
-check($up['filename'] === 'cover.png' && $up['content'] === 'PNGDATA' && $up['field'] === 'hi', 'media upload multipart');
-check(strpos($up['ct'], 'multipart/form-data; boundary=') === 0, 'multipart content-type boundary');
 
 // setBearerToken
 $z3 = new Client(['bearerToken' => 'jwt1', 'baseUrl' => $base]);

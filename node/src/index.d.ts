@@ -1,7 +1,7 @@
 // Type definitions for @zatabox/node.
 // The per-namespace method types live in ./resources.generated.d.ts.
 
-import type { ResourceNamespaces, WebhooksNamespace, MediaNamespace } from './resources.generated';
+import type { ResourceNamespaces, WebhooksNamespace } from './resources.generated';
 
 export const VERSION: string;
 
@@ -39,15 +39,6 @@ export interface BinaryResponse {
   filename: string | null;
 }
 
-export interface UploadOptions {
-  filename?: string;
-  contentType?: string;
-  /** Form field name for the file (default "file"). */
-  field?: string;
-  /** Extra form fields. */
-  fields?: Record<string, string | number>;
-}
-
 export class ZataboxError extends Error {
   name: 'ZataboxError';
   code: string;
@@ -62,14 +53,9 @@ export interface WebhooksNamespaceExt extends WebhooksNamespace {
   verify(payload: string | object, signatureHeader: string, secret: string, toleranceSec?: number): any;
 }
 
-/** Media namespace plus multipart upload. */
-export interface MediaNamespaceExt extends MediaNamespace {
-  upload(file: Buffer | Uint8Array | Blob, opts?: UploadOptions): Promise<any>;
-}
-
 export type Client = ZataboxClient;
 
-export class ZataboxClient implements Omit<ResourceNamespaces, 'webhooks' | 'media'> {
+export class ZataboxClient implements Omit<ResourceNamespaces, 'webhooks'> {
   constructor(options: ClientOptions);
 
   apiKey: string | null;
@@ -89,31 +75,18 @@ export class ZataboxClient implements Omit<ResourceNamespaces, 'webhooks' | 'med
   paginate(listFn: (query?: Record<string, any>) => Promise<any>, query?: Record<string, any>): AsyncGenerator<any>;
 
   webhooks: WebhooksNamespaceExt;
-  media: MediaNamespaceExt;
 
-  // Generated namespaces.
+  // Generated namespaces (publicly documented surface only).
   auth: ResourceNamespaces['auth'];
-  users: ResourceNamespaces['users'];
-  savedSearches: ResourceNamespaces['savedSearches'];
-  dataExport: ResourceNamespaces['dataExport'];
   events: ResourceNamespaces['events'];
+  organizer: ResourceNamespaces['organizer'];
+  eventCustomization: ResourceNamespaces['eventCustomization'];
   tickets: ResourceNamespaces['tickets'];
   orders: ResourceNamespaces['orders'];
   payments: ResourceNamespaces['payments'];
   checkin: ResourceNamespaces['checkin'];
-  scan: ResourceNamespaces['scan'];
-  search: ResourceNamespaces['search'];
-  organizer: ResourceNamespaces['organizer'];
-  wallets: ResourceNamespaces['wallets'];
-  scannerTokens: ResourceNamespaces['scannerTokens'];
-  integrations: ResourceNamespaces['integrations'];
-  eventCustomization: ResourceNamespaces['eventCustomization'];
-  growth: ResourceNamespaces['growth'];
-  publicEvents: ResourceNamespaces['publicEvents'];
-  site: ResourceNamespaces['site'];
   community: ResourceNamespaces['community'];
-  track: ResourceNamespaces['track'];
-  whiteLabel: ResourceNamespaces['whiteLabel'];
-  support: ResourceNamespaces['support'];
-  util: ResourceNamespaces['util'];
+  growth: ResourceNamespaces['growth'];
+  users: ResourceNamespaces['users'];
+  integrations: ResourceNamespaces['integrations'];
 }

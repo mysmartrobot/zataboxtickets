@@ -1,4 +1,4 @@
-// Package zatabox is the official Go SDK for the Zatabox Tickets REST API —
+// Package zatabox is the official Go SDK for the Zatabox Tickets REST API 
 // the white-label event-ticketing platform.
 //
 // Zero third-party dependencies (standard library only). Full coverage of all

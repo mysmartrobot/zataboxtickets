@@ -1,6 +1,6 @@
 # Zatabox SDKs
 
-Official client libraries for the [Zatabox Tickets](https://zatabox.com) REST API —
+Official client libraries for the [Zatabox Tickets](https://zatabox.com) REST API 
 the white-label event-ticketing platform in **Node.js, Python, Ruby, PHP and Go**.
 
 Every SDK covers **all 78 publicly documented REST endpoints** (the
@@ -83,7 +83,7 @@ are untouched.
 `webhooks`
 
 (These are exactly the integrator-, organizer- and buyer-facing surfaces published
-on the public docs. Namespaces are spelled idiomatically per language —
+on the public docs. Namespaces are spelled idiomatically per language 
 `eventCustomization` in Node/PHP, `event_customization` in Python/Ruby,
 `EventCustomization` in Go.)
 

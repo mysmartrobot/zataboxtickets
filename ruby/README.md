@@ -152,7 +152,7 @@ Zatabox::Client.new(api_key: "vt_test_...", base_url: "http://localhost:4100")
 
 Mint/rotate `vt_test_` keys, watch **live request logs**, see usage and browse the
 endpoint catalog in the **sandbox console at https://tester.zatabox.com** (sign in
-with your production account). A test key used against production or vice-versa —
+with your production account). A test key used against production or vice-versa 
 returns `403 WRONG_ENV`.
 
 ## Client configuration

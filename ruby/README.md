@@ -95,7 +95,7 @@ begin
   )
   z.organizer.create_ticket(event["id"],
     name: "General Admission", type: "general", price: 5000, currency: "NGN",
-    quantityTotal: 450, saleStart: "2026-07-01T00:00:00Z", saleEnd: "2026-08-22T20:00:00Z")
+    quantityTotal: 450, saleStart: "2026-07-01T00:00:00Z", saleEnd: "2026-08-22T20:00:00Z")  # event-level: returnPolicy:, highlightVideoUrl:  |  ticket-level: transferable:, accessUrl:, accessNote: are also accepted
   z.organizer.publish_event(event["id"])
   puts "published: #{z.events.get(event['slug'])['status']}"
 rescue Zatabox::Error => e

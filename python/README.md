@@ -96,11 +96,15 @@ try:
         "venueType": "physical",
         "venueCity": "Lagos",
         "capacity": 450,
+        "returnPolicy": "Refunds up to 48h before doors.",   # shown publicly
+        "highlightVideoUrl": "https://youtu.be/dQw4w9WgXcQ", # embedded highlight player
     })
     z.organizer.create_ticket(event["id"], {
         "name": "General Admission", "type": "general", "price": 5000,
         "currency": "NGN", "quantityTotal": 450,
         "saleStart": "2026-07-01T00:00:00Z", "saleEnd": "2026-08-22T20:00:00Z",
+        "transferable": True, "accessUrl": "https://api.zatabox.com/media/123",  # digital delivery, buyer-only
+        "accessNote": "Unzip password: dock12",
     })
     z.organizer.publish_event(event["id"])
     print("published:", z.events.get(event["slug"])["status"])

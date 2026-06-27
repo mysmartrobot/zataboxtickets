@@ -108,6 +108,8 @@ async function main() {
     venueName: 'Dock 12',
     venueCity: 'Lagos',
     capacity: 450,
+    returnPolicy: 'Refunds up to 48h before doors.',   // shown publicly on the event page
+    highlightVideoUrl: 'https://youtu.be/dQw4w9WgXcQ',  // embedded highlight player
   });
 
   // 2. Add a ticket type
@@ -119,6 +121,9 @@ async function main() {
     quantityTotal: 450,
     saleStart: '2026-07-01T00:00:00Z',
     saleEnd: '2026-08-22T20:00:00Z',
+    transferable: true,                                 // holders can pass it on (false to lock)
+    accessUrl: 'https://api.zatabox.com/media/123',     // digital delivery, buyer-only
+    accessNote: 'Unzip password: dock12',
   });
 
   // 3. Publish it

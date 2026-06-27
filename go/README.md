@@ -93,6 +93,7 @@ func main() {
 		"startDate": "2026-08-22T20:00:00Z", "endDate": "2026-08-23T02:00:00Z",
 		"timezone": "Africa/Lagos", "venueType": "physical", "venueCity": "Lagos",
 		"capacity": 450,
+		"returnPolicy": "Refunds up to 48h before doors.", "highlightVideoUrl": "https://youtu.be/dQw4w9WgXcQ",
 	}))
 	if err != nil {
 		panic(err)
@@ -103,6 +104,7 @@ func main() {
 	_, _ = z.Organizer.CreateTicket(ctx, event.ID, zatabox.WithBody(map[string]interface{}{
 		"name": "General Admission", "type": "general", "price": 5000, "currency": "NGN",
 		"quantityTotal": 450, "saleStart": "2026-07-01T00:00:00Z", "saleEnd": "2026-08-22T20:00:00Z",
+		"transferable": true, "accessUrl": "https://api.zatabox.com/media/123", "accessNote": "Unzip password: dock12",
 	}))
 	_, _ = z.Organizer.PublishEvent(ctx, event.ID)
 	fmt.Println("published", event.ID)

@@ -107,11 +107,15 @@ try {
         'venueType' => 'physical',
         'venueCity' => 'Lagos',
         'capacity' => 450,
+        'returnPolicy' => 'Refunds up to 48h before doors.',   // shown publicly
+        'highlightVideoUrl' => 'https://youtu.be/dQw4w9WgXcQ',  // embedded highlight player
     ]);
     $z->organizer->createTicket($event['id'], [
         'name' => 'General Admission', 'type' => 'general', 'price' => 5000,
         'currency' => 'NGN', 'quantityTotal' => 450,
         'saleStart' => '2026-07-01T00:00:00Z', 'saleEnd' => '2026-08-22T20:00:00Z',
+        'transferable' => true, 'accessUrl' => 'https://api.zatabox.com/media/123', // digital delivery, buyer-only
+        'accessNote' => 'Unzip password: dock12',
     ]);
     $z->organizer->publishEvent($event['id']);
     echo $z->events->get($event['slug'])['status'];

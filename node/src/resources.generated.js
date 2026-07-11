@@ -25,14 +25,29 @@ function attachResources(client) {
   };
   // Events (Public) Public event discovery and read, plus external ticket issuance.
   client.events = {
-    // List and search published public events (cursor-paginated).
+    // List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital).
     list: (query, opts) => client.request('GET', "/api/v1/events", { query, ...(opts || {}) }),
-    // Event detail by slug (organizer info, schedule, active ticket types).
+    // Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType.
+    search: (query, opts) => client.request('GET', "/api/v1/search", { query, ...(opts || {}) }),
+    // Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType).
     get: (slug, query, opts) => client.request('GET', "/api/v1/events/" + enc(slug), { query, ...(opts || {}) }),
     // List an event's ticket types with live availability.
     tickets: (id, query, opts) => client.request('GET', "/api/v1/events/" + enc(id) + "/tickets", { query, ...(opts || {}) }),
     // Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets).
     issue: (eventId, body, opts) => client.request('POST', "/api/v1/events/" + enc(eventId) + "/issue", { body, ...(opts || {}) }),
+  };
+  // Seating (Public) Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required.
+  client.seating = {
+    // Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section.
+    seatmap: (eventId, query, opts) => client.request('GET', "/api/v1/public/events/" + enc(eventId) + "/seatmap", { query, ...(opts || {}) }),
+    // Live seat availability snapshot { sold, blocked, held } any seat id not listed is available.
+    seats: (eventId, query, opts) => client.request('GET', "/api/v1/public/events/" + enc(eventId) + "/seats", { query, ...(opts || {}) }),
+    // Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events). (SSE returns the stream URL)
+    liveUrl: (eventId, query) => client._url("/api/v1/public/events/" + enc(eventId) + "/seats/live", query),
+    // Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }.
+    hold: (eventId, body, opts) => client.request('POST', "/api/v1/public/events/" + enc(eventId) + "/seats/hold", { body, ...(opts || {}) }),
+    // Release a holder's seat holds (omit seatIds in the body to release all of them).
+    releaseHold: (eventId, body, opts) => client.request('DELETE', "/api/v1/public/events/" + enc(eventId) + "/seats/hold", { body, ...(opts || {}) }),
   };
   // Organizer Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
   client.organizer = {
@@ -66,6 +81,18 @@ function attachResources(client) {
     updateSection: (id, sectionId, body, opts) => client.request('PUT', "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sectionId), { body, ...(opts || {}) }),
     // Delete a seating section.
     deleteSection: (id, sectionId, body, opts) => client.request('DELETE', "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sectionId), { body, ...(opts || {}) }),
+    // Browse published venue seat maps you can attach to an event (interactive seating).
+    venues: (query, opts) => client.request('GET', "/api/v1/organizer/venues", { query, ...(opts || {}) }),
+    // Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats.
+    getEventSeating: (id, query, opts) => client.request('GET', "/api/v1/organizer/events/" + enc(id) + "/seating", { query, ...(opts || {}) }),
+    // Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds).
+    attachSeating: (id, body, opts) => client.request('PUT', "/api/v1/organizer/events/" + enc(id) + "/seating", { body, ...(opts || {}) }),
+    // Remove interactive seating from the event (only before any seat sells).
+    detachSeating: (id, body, opts) => client.request('DELETE', "/api/v1/organizer/events/" + enc(id) + "/seating", { body, ...(opts || {}) }),
+    // Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}]).
+    setSeatingPricing: (id, body, opts) => client.request('PUT', "/api/v1/organizer/events/" + enc(id) + "/seating/pricing", { body, ...(opts || {}) }),
+    // Block or unblock seats for the event (body: block:[seatId], unblock:[seatId]).
+    setSeatingBlocks: (id, body, opts) => client.request('POST', "/api/v1/organizer/events/" + enc(id) + "/seating/blocks", { body, ...(opts || {}) }),
     // List promo codes (optionally filtered by event).
     promoCodes: (query, opts) => client.request('GET', "/api/v1/organizer/promo-codes", { query, ...(opts || {}) }),
     // Create a promo code.
@@ -166,6 +193,25 @@ function attachResources(client) {
     messages: (query, opts) => client.request('GET', "/api/v1/users/me/messages", { query, ...(opts || {}) }),
     // Message the organizer about a ticket (rate-limited).
     sendTicketMessage: (ticketId, body, opts) => client.request('POST', "/api/v1/users/me/tickets/" + enc(ticketId) + "/message", { body, ...(opts || {}) }),
+  };
+  // Courses (Learner) The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required.
+  client.courses = {
+    // List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content.
+    mine: (query, opts) => client.request('GET', "/api/v1/courses/mine", { query, ...(opts || {}) }),
+    // Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block.
+    get: (eventId, query, opts) => client.request('GET', "/api/v1/courses/" + enc(eventId), { query, ...(opts || {}) }),
+    // Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate.
+    completeLesson: (eventId, index, body, opts) => client.request('POST', "/api/v1/courses/" + enc(eventId) + "/lessons/" + enc(index) + "/complete", { body, ...(opts || {}) }),
+    // Reverse a syllabus lesson completion (does not revoke an already-issued certificate).
+    uncompleteLesson: (eventId, index, body, opts) => client.request('DELETE', "/api/v1/courses/" + enc(eventId) + "/lessons/" + enc(index) + "/complete", { body, ...(opts || {}) }),
+    // Complete a unified course (unified courses only): marks the single learning unit complete.
+    complete: (eventId, body, opts) => client.request('POST', "/api/v1/courses/" + enc(eventId) + "/complete", { body, ...(opts || {}) }),
+    // Get the course exam to take. Correct answers and explanations are stripped server-side.
+    exam: (eventId, query, opts) => client.request('GET', "/api/v1/courses/" + enc(eventId) + "/exam", { query, ...(opts || {}) }),
+    // Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance.
+    submitExam: (eventId, body, opts) => client.request('POST', "/api/v1/courses/" + enc(eventId) + "/exam/submit", { body, ...(opts || {}) }),
+    // Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned).
+    certificate: (eventId, query, opts) => client.request('GET', "/api/v1/courses/" + enc(eventId) + "/certificate", { query, raw: true, ...(opts || {}) }),
   };
   // API keys Manage your organization's own API keys (organizer owner/admin auth).
   client.integrations = {

@@ -14,7 +14,7 @@
 const crypto = require('node:crypto');
 const { attachResources } = require('./resources.generated');
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 const DEFAULT_LIVE = 'https://api.zatabox.com';
 const DEFAULT_SANDBOX = 'https://sandbox.zatabox.com';

@@ -3,7 +3,7 @@
 Official client libraries for the [Zatabox Tickets](https://zatabox.com) REST API 
 the white-label event-ticketing platform in **Node.js, Python, Ruby, PHP and Go**.
 
-Every SDK covers **all 78 publicly documented REST endpoints** (the
+Every SDK covers **all 98 publicly documented REST endpoints** (the
 integrator-facing surface published at <https://zatabox.com/docs/api>) with the same
 ergonomics: scoped-key / JWT auth with automatic sandbox routing, idempotent writes,
 a typed error envelope, cursor auto-pagination, live-stream (SSE) URLs and
@@ -17,7 +17,7 @@ library** (zero third-party runtime dependencies).
 
 | Language | Folder | Runtime deps | Tests |
 |---|---|---|---|
-| Node.js | [`node/`](./node) | none (`fetch` + `node:crypto`) | ✅ 17 |
+| Node.js | [`node/`](./node) | none (`fetch` + `node:crypto`) | ✅ 16 |
 | Python | [`python/`](./python) | none (`urllib` + `hmac`) | ✅ 16 |
 | Ruby | [`ruby/`](./ruby) | none (`net/http` + `openssl`) | ✅ 16 |
 | PHP | [`php/`](./php) | none (`curl`/`json`/`hash` ext) | ✅ 28 (live server) |
@@ -76,11 +76,11 @@ The generator validates the manifest (no duplicate routes/methods, well-formed
 paths) before emitting, then rewrites every SDK's resource layer. Cores and tests
 are untouched.
 
-## The 78 endpoints, by namespace
+## The 98 endpoints, by namespace
 
-`auth` · `events` · `organizer` · `eventCustomization` · `tickets` · `orders` ·
-`payments` · `checkin` · `community` · `growth` · `users` · `integrations` ·
-`webhooks`
+`auth` · `events` · `seating` · `organizer` · `eventCustomization` · `tickets` ·
+`orders` · `payments` · `checkin` · `community` · `growth` · `users` · `courses` ·
+`integrations` · `webhooks`
 
 (These are exactly the integrator-, organizer- and buyer-facing surfaces published
 on the public docs. Namespaces are spelled idiomatically per language 

@@ -76,13 +76,19 @@ class EventsResource
         $this->client = $client;
     }
 
-    /** List and search published public events (cursor-paginated). */
+    /** List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital). */
     public function list($query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/events", $opts + ['query' => $query]);
     }
 
-    /** Event detail by slug (organizer info, schedule, active ticket types). */
+    /** Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType. */
+    public function search($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/search", $opts + ['query' => $query]);
+    }
+
+    /** Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType). */
     public function get($slug, $query = null, array $opts = [])
     {
         return $this->client->request('GET', "/api/v1/events/" . Client::enc($slug), $opts + ['query' => $query]);
@@ -98,6 +104,50 @@ class EventsResource
     public function issue($eventId, $body = null, array $opts = [])
     {
         return $this->client->request('POST', "/api/v1/events/" . Client::enc($eventId) . "/issue", $opts + ['body' => $body]);
+    }
+}
+
+/**
+ * Seating (Public) Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required.
+ */
+class SeatingResource
+{
+    /** @var Client */
+    private $client;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+    }
+
+    /** Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section. */
+    public function seatmap($eventId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/public/events/" . Client::enc($eventId) . "/seatmap", $opts + ['query' => $query]);
+    }
+
+    /** Live seat availability snapshot { sold, blocked, held } any seat id not listed is available. */
+    public function seats($eventId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/public/events/" . Client::enc($eventId) . "/seats", $opts + ['query' => $query]);
+    }
+
+    /** Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events). (SSE returns the stream URL). */
+    public function liveUrl($eventId, $query = null)
+    {
+        return $this->client->url("/api/v1/public/events/" . Client::enc($eventId) . "/seats/live", $query);
+    }
+
+    /** Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }. */
+    public function hold($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/public/events/" . Client::enc($eventId) . "/seats/hold", $opts + ['body' => $body]);
+    }
+
+    /** Release a holder's seat holds (omit seatIds in the body to release all of them). */
+    public function releaseHold($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('DELETE', "/api/v1/public/events/" . Client::enc($eventId) . "/seats/hold", $opts + ['body' => $body]);
     }
 }
 
@@ -202,6 +252,42 @@ class OrganizerResource
     public function deleteSection($id, $sectionId, $body = null, array $opts = [])
     {
         return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/sections/" . Client::enc($sectionId), $opts + ['body' => $body]);
+    }
+
+    /** Browse published venue seat maps you can attach to an event (interactive seating). */
+    public function venues($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/organizer/venues", $opts + ['query' => $query]);
+    }
+
+    /** Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats. */
+    public function getEventSeating($id, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/organizer/events/" . Client::enc($id) . "/seating", $opts + ['query' => $query]);
+    }
+
+    /** Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds). */
+    public function attachSeating($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/seating", $opts + ['body' => $body]);
+    }
+
+    /** Remove interactive seating from the event (only before any seat sells). */
+    public function detachSeating($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('DELETE', "/api/v1/organizer/events/" . Client::enc($id) . "/seating", $opts + ['body' => $body]);
+    }
+
+    /** Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}]). */
+    public function setSeatingPricing($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('PUT', "/api/v1/organizer/events/" . Client::enc($id) . "/seating/pricing", $opts + ['body' => $body]);
+    }
+
+    /** Block or unblock seats for the event (body: block:[seatId], unblock:[seatId]). */
+    public function setSeatingBlocks($id, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/organizer/events/" . Client::enc($id) . "/seating/blocks", $opts + ['body' => $body]);
     }
 
     /** List promo codes (optionally filtered by event). */
@@ -546,6 +632,68 @@ class UsersResource
 }
 
 /**
+ * Courses (Learner) The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required.
+ */
+class CoursesResource
+{
+    /** @var Client */
+    private $client;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+    }
+
+    /** List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content. */
+    public function mine($query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/courses/mine", $opts + ['query' => $query]);
+    }
+
+    /** Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block. */
+    public function get($eventId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/courses/" . Client::enc($eventId), $opts + ['query' => $query]);
+    }
+
+    /** Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate. */
+    public function completeLesson($eventId, $index, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/courses/" . Client::enc($eventId) . "/lessons/" . Client::enc($index) . "/complete", $opts + ['body' => $body]);
+    }
+
+    /** Reverse a syllabus lesson completion (does not revoke an already-issued certificate). */
+    public function uncompleteLesson($eventId, $index, $body = null, array $opts = [])
+    {
+        return $this->client->request('DELETE', "/api/v1/courses/" . Client::enc($eventId) . "/lessons/" . Client::enc($index) . "/complete", $opts + ['body' => $body]);
+    }
+
+    /** Complete a unified course (unified courses only): marks the single learning unit complete. */
+    public function complete($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/courses/" . Client::enc($eventId) . "/complete", $opts + ['body' => $body]);
+    }
+
+    /** Get the course exam to take. Correct answers and explanations are stripped server-side. */
+    public function exam($eventId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/courses/" . Client::enc($eventId) . "/exam", $opts + ['query' => $query]);
+    }
+
+    /** Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance. */
+    public function submitExam($eventId, $body = null, array $opts = [])
+    {
+        return $this->client->request('POST', "/api/v1/courses/" . Client::enc($eventId) . "/exam/submit", $opts + ['body' => $body]);
+    }
+
+    /** Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned). */
+    public function certificate($eventId, $query = null, array $opts = [])
+    {
+        return $this->client->request('GET', "/api/v1/courses/" . Client::enc($eventId) . "/certificate", $opts + ['query' => $query, 'raw' => true]);
+    }
+}
+
+/**
  * API keys Manage your organization's own API keys (organizer owner/admin auth).
  */
 class IntegrationsResource
@@ -663,6 +811,7 @@ final class Registry
     const MAP = [
         'auth' => AuthResource::class,
         'events' => EventsResource::class,
+        'seating' => SeatingResource::class,
         'organizer' => OrganizerResource::class,
         'eventCustomization' => EventCustomizationResource::class,
         'tickets' => TicketsResource::class,
@@ -672,6 +821,7 @@ final class Registry
         'community' => CommunityResource::class,
         'growth' => GrowthResource::class,
         'users' => UsersResource::class,
+        'courses' => CoursesResource::class,
         'integrations' => IntegrationsResource::class,
         'webhooks' => WebhooksResource::class,
     ];

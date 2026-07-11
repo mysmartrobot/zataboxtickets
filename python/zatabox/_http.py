@@ -12,7 +12,7 @@ from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 DEFAULT_LIVE = "https://api.zatabox.com"
 DEFAULT_SANDBOX = "https://sandbox.zatabox.com"

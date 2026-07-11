@@ -45,11 +45,15 @@ class EventsResource:
         self._c = client
 
     def list(self, query=None, **opts):
-        """List and search published public events (cursor-paginated)."""
+        """List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital)."""
         return self._c._request("GET", "/api/v1/events", query=query, **opts)
 
+    def search(self, query=None, **opts):
+        """Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType."""
+        return self._c._request("GET", "/api/v1/search", query=query, **opts)
+
     def get(self, slug, query=None, **opts):
-        """Event detail by slug (organizer info, schedule, active ticket types)."""
+        """Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType)."""
         return self._c._request("GET", "/api/v1/events/" + enc(slug), query=query, **opts)
 
     def tickets(self, id, query=None, **opts):
@@ -59,6 +63,33 @@ class EventsResource:
     def issue(self, event_id, body=None, **opts):
         """Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets)."""
         return self._c._request("POST", "/api/v1/events/" + enc(event_id) + "/issue", body=body, **opts)
+
+
+class SeatingResource:
+    """Seating (Public) Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required."""
+
+    def __init__(self, client):
+        self._c = client
+
+    def seatmap(self, event_id, query=None, **opts):
+        """Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section."""
+        return self._c._request("GET", "/api/v1/public/events/" + enc(event_id) + "/seatmap", query=query, **opts)
+
+    def seats(self, event_id, query=None, **opts):
+        """Live seat availability snapshot { sold, blocked, held } any seat id not listed is available."""
+        return self._c._request("GET", "/api/v1/public/events/" + enc(event_id) + "/seats", query=query, **opts)
+
+    def live_url(self, event_id, query=None):
+        """Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events). (SSE returns the stream URL)."""
+        return self._c._url("/api/v1/public/events/" + enc(event_id) + "/seats/live", query)
+
+    def hold(self, event_id, body=None, **opts):
+        """Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }."""
+        return self._c._request("POST", "/api/v1/public/events/" + enc(event_id) + "/seats/hold", body=body, **opts)
+
+    def release_hold(self, event_id, body=None, **opts):
+        """Release a holder's seat holds (omit seatIds in the body to release all of them)."""
+        return self._c._request("DELETE", "/api/v1/public/events/" + enc(event_id) + "/seats/hold", body=body, **opts)
 
 
 class OrganizerResource:
@@ -126,6 +157,30 @@ class OrganizerResource:
     def delete_section(self, id, section_id, body=None, **opts):
         """Delete a seating section."""
         return self._c._request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(section_id), body=body, **opts)
+
+    def venues(self, query=None, **opts):
+        """Browse published venue seat maps you can attach to an event (interactive seating)."""
+        return self._c._request("GET", "/api/v1/organizer/venues", query=query, **opts)
+
+    def get_event_seating(self, id, query=None, **opts):
+        """Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats."""
+        return self._c._request("GET", "/api/v1/organizer/events/" + enc(id) + "/seating", query=query, **opts)
+
+    def attach_seating(self, id, body=None, **opts):
+        """Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds)."""
+        return self._c._request("PUT", "/api/v1/organizer/events/" + enc(id) + "/seating", body=body, **opts)
+
+    def detach_seating(self, id, body=None, **opts):
+        """Remove interactive seating from the event (only before any seat sells)."""
+        return self._c._request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/seating", body=body, **opts)
+
+    def set_seating_pricing(self, id, body=None, **opts):
+        """Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}])."""
+        return self._c._request("PUT", "/api/v1/organizer/events/" + enc(id) + "/seating/pricing", body=body, **opts)
+
+    def set_seating_blocks(self, id, body=None, **opts):
+        """Block or unblock seats for the event (body: block:[seatId], unblock:[seatId])."""
+        return self._c._request("POST", "/api/v1/organizer/events/" + enc(id) + "/seating/blocks", body=body, **opts)
 
     def promo_codes(self, query=None, **opts):
         """List promo codes (optionally filtered by event)."""
@@ -336,6 +391,45 @@ class UsersResource:
         return self._c._request("POST", "/api/v1/users/me/tickets/" + enc(ticket_id) + "/message", body=body, **opts)
 
 
+class CoursesResource:
+    """Courses (Learner) The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required."""
+
+    def __init__(self, client):
+        self._c = client
+
+    def mine(self, query=None, **opts):
+        """List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content."""
+        return self._c._request("GET", "/api/v1/courses/mine", query=query, **opts)
+
+    def get(self, event_id, query=None, **opts):
+        """Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block."""
+        return self._c._request("GET", "/api/v1/courses/" + enc(event_id), query=query, **opts)
+
+    def complete_lesson(self, event_id, index, body=None, **opts):
+        """Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate."""
+        return self._c._request("POST", "/api/v1/courses/" + enc(event_id) + "/lessons/" + enc(index) + "/complete", body=body, **opts)
+
+    def uncomplete_lesson(self, event_id, index, body=None, **opts):
+        """Reverse a syllabus lesson completion (does not revoke an already-issued certificate)."""
+        return self._c._request("DELETE", "/api/v1/courses/" + enc(event_id) + "/lessons/" + enc(index) + "/complete", body=body, **opts)
+
+    def complete(self, event_id, body=None, **opts):
+        """Complete a unified course (unified courses only): marks the single learning unit complete."""
+        return self._c._request("POST", "/api/v1/courses/" + enc(event_id) + "/complete", body=body, **opts)
+
+    def exam(self, event_id, query=None, **opts):
+        """Get the course exam to take. Correct answers and explanations are stripped server-side."""
+        return self._c._request("GET", "/api/v1/courses/" + enc(event_id) + "/exam", query=query, **opts)
+
+    def submit_exam(self, event_id, body=None, **opts):
+        """Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance."""
+        return self._c._request("POST", "/api/v1/courses/" + enc(event_id) + "/exam/submit", body=body, **opts)
+
+    def certificate(self, event_id, query=None, **opts):
+        """Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned)."""
+        return self._c._request("GET", "/api/v1/courses/" + enc(event_id) + "/certificate", query=query, raw=True, **opts)
+
+
 class IntegrationsResource:
     """API keys Manage your organization's own API keys (organizer owner/admin auth)."""
 
@@ -409,6 +503,7 @@ class WebhooksResource:
 RESOURCES = {
     "auth": AuthResource,
     "events": EventsResource,
+    "seating": SeatingResource,
     "organizer": OrganizerResource,
     "event_customization": EventCustomizationResource,
     "tickets": TicketsResource,
@@ -418,6 +513,7 @@ RESOURCES = {
     "community": CommunityResource,
     "growth": GrowthResource,
     "users": UsersResource,
+    "courses": CoursesResource,
     "integrations": IntegrationsResource,
     "webhooks": WebhooksResource,
 }

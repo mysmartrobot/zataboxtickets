@@ -30,7 +30,7 @@ import (
 )
 
 // Version of the SDK.
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 const (
 	defaultLive    = "https://api.zatabox.com"

@@ -12,6 +12,7 @@ import (
 type services struct {
 	Auth *AuthService
 	Events *EventsService
+	Seating *SeatingService
 	Organizer *OrganizerService
 	EventCustomization *EventCustomizationService
 	Tickets *TicketsService
@@ -21,6 +22,7 @@ type services struct {
 	Community *CommunityService
 	Growth *GrowthService
 	Users *UsersService
+	Courses *CoursesService
 	Integrations *IntegrationsService
 	Webhooks *WebhooksService
 }
@@ -28,6 +30,7 @@ type services struct {
 func (c *Client) initServices() {
 	c.Auth = &AuthService{c: c}
 	c.Events = &EventsService{c: c}
+	c.Seating = &SeatingService{c: c}
 	c.Organizer = &OrganizerService{c: c}
 	c.EventCustomization = &EventCustomizationService{c: c}
 	c.Tickets = &TicketsService{c: c}
@@ -37,6 +40,7 @@ func (c *Client) initServices() {
 	c.Community = &CommunityService{c: c}
 	c.Growth = &GrowthService{c: c}
 	c.Users = &UsersService{c: c}
+	c.Courses = &CoursesService{c: c}
 	c.Integrations = &IntegrationsService{c: c}
 	c.Webhooks = &WebhooksService{c: c}
 }
@@ -82,12 +86,17 @@ func (s *AuthService) Logout(ctx context.Context, opts ...RequestOption) (json.R
 // EventsService Events (Public): Public event discovery and read, plus external ticket issuance.
 type EventsService struct{ c *Client }
 
-// List List and search published public events (cursor-paginated).
+// List List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital).
 func (s *EventsService) List(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/events", opts)
 }
 
-// Get Event detail by slug (organizer info, schedule, active ticket types).
+// Search Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType.
+func (s *EventsService) Search(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/search", opts)
+}
+
+// Get Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType).
 func (s *EventsService) Get(ctx context.Context, slug string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "GET", "/api/v1/events/" + enc(slug), opts)
 }
@@ -100,6 +109,34 @@ func (s *EventsService) Tickets(ctx context.Context, id string, opts ...RequestO
 // Issue Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets).
 func (s *EventsService) Issue(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/events/" + enc(eventId) + "/issue", opts)
+}
+
+// SeatingService Seating (Public): Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required.
+type SeatingService struct{ c *Client }
+
+// Seatmap Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section.
+func (s *SeatingService) Seatmap(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/public/events/" + enc(eventId) + "/seatmap", opts)
+}
+
+// Seats Live seat availability snapshot { sold, blocked, held } any seat id not listed is available.
+func (s *SeatingService) Seats(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/public/events/" + enc(eventId) + "/seats", opts)
+}
+
+// LiveURL Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events). (SSE; returns the stream URL).
+func (s *SeatingService) LiveURL(eventId string, queryArgs ...map[string]interface{}) string {
+	return s.c.url("/api/v1/public/events/" + enc(eventId) + "/seats/live", firstQuery(queryArgs))
+}
+
+// Hold Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }.
+func (s *SeatingService) Hold(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/public/events/" + enc(eventId) + "/seats/hold", opts)
+}
+
+// ReleaseHold Release a holder's seat holds (omit seatIds in the body to release all of them).
+func (s *SeatingService) ReleaseHold(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/public/events/" + enc(eventId) + "/seats/hold", opts)
 }
 
 // OrganizerService Organizer: Organizer surface: organization read, events, ticket types, schedule sessions, seating sections and promo codes.
@@ -178,6 +215,36 @@ func (s *OrganizerService) UpdateSection(ctx context.Context, id string, section
 // DeleteSection Delete a seating section.
 func (s *OrganizerService) DeleteSection(ctx context.Context, id string, sectionId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(sectionId), opts)
+}
+
+// Venues Browse published venue seat maps you can attach to an event (interactive seating).
+func (s *OrganizerService) Venues(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/organizer/venues", opts)
+}
+
+// GetEventSeating Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats.
+func (s *OrganizerService) GetEventSeating(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/organizer/events/" + enc(id) + "/seating", opts)
+}
+
+// AttachSeating Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds).
+func (s *OrganizerService) AttachSeating(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/seating", opts)
+}
+
+// DetachSeating Remove interactive seating from the event (only before any seat sells).
+func (s *OrganizerService) DetachSeating(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/organizer/events/" + enc(id) + "/seating", opts)
+}
+
+// SetSeatingPricing Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}]).
+func (s *OrganizerService) SetSeatingPricing(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "PUT", "/api/v1/organizer/events/" + enc(id) + "/seating/pricing", opts)
+}
+
+// SetSeatingBlocks Block or unblock seats for the event (body: block:[seatId], unblock:[seatId]).
+func (s *OrganizerService) SetSeatingBlocks(ctx context.Context, id string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/organizer/events/" + enc(id) + "/seating/blocks", opts)
 }
 
 // PromoCodes List promo codes (optionally filtered by event).
@@ -392,6 +459,49 @@ func (s *UsersService) Messages(ctx context.Context, opts ...RequestOption) (jso
 // SendTicketMessage Message the organizer about a ticket (rate-limited).
 func (s *UsersService) SendTicketMessage(ctx context.Context, ticketId string, opts ...RequestOption) (json.RawMessage, error) {
 	return s.c.do(ctx, "POST", "/api/v1/users/me/tickets/" + enc(ticketId) + "/message", opts)
+}
+
+// CoursesService Courses (Learner): The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required.
+type CoursesService struct{ c *Client }
+
+// Mine List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content.
+func (s *CoursesService) Mine(ctx context.Context, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/courses/mine", opts)
+}
+
+// Get Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block.
+func (s *CoursesService) Get(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/courses/" + enc(eventId), opts)
+}
+
+// CompleteLesson Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate.
+func (s *CoursesService) CompleteLesson(ctx context.Context, eventId string, index string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/courses/" + enc(eventId) + "/lessons/" + enc(index) + "/complete", opts)
+}
+
+// UncompleteLesson Reverse a syllabus lesson completion (does not revoke an already-issued certificate).
+func (s *CoursesService) UncompleteLesson(ctx context.Context, eventId string, index string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "DELETE", "/api/v1/courses/" + enc(eventId) + "/lessons/" + enc(index) + "/complete", opts)
+}
+
+// Complete Complete a unified course (unified courses only): marks the single learning unit complete.
+func (s *CoursesService) Complete(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/courses/" + enc(eventId) + "/complete", opts)
+}
+
+// Exam Get the course exam to take. Correct answers and explanations are stripped server-side.
+func (s *CoursesService) Exam(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "GET", "/api/v1/courses/" + enc(eventId) + "/exam", opts)
+}
+
+// SubmitExam Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance.
+func (s *CoursesService) SubmitExam(ctx context.Context, eventId string, opts ...RequestOption) (json.RawMessage, error) {
+	return s.c.do(ctx, "POST", "/api/v1/courses/" + enc(eventId) + "/exam/submit", opts)
+}
+
+// Certificate Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned). Returns raw bytes and the content type.
+func (s *CoursesService) Certificate(ctx context.Context, eventId string, opts ...RequestOption) ([]byte, string, error) {
+	return s.c.doRaw(ctx, "GET", "/api/v1/courses/" + enc(eventId) + "/certificate", opts)
 }
 
 // IntegrationsService API keys: Manage your organization's own API keys (organizer owner/admin auth).

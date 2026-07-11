@@ -23,10 +23,23 @@
       "title": "Events (Public)",
       "desc": "Public event discovery and read, plus external ticket issuance.",
       "endpoints": [
-        { "name": "list", "method": "GET", "path": "/api/v1/events", "desc": "List and search published public events (cursor-paginated)." },
-        { "name": "get", "method": "GET", "path": "/api/v1/events/:slug", "desc": "Event detail by slug (organizer info, schedule, active ticket types)." },
+        { "name": "list", "method": "GET", "path": "/api/v1/events", "desc": "List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital)." },
+        { "name": "search", "method": "GET", "path": "/api/v1/search", "desc": "Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType." },
+        { "name": "get", "method": "GET", "path": "/api/v1/events/:slug", "desc": "Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType)." },
         { "name": "tickets", "method": "GET", "path": "/api/v1/events/:id/tickets", "desc": "List an event's ticket types with live availability." },
         { "name": "issue", "method": "POST", "path": "/api/v1/events/:eventId/issue", "desc": "Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets)." }
+      ]
+    },
+    {
+      "ns": "seating",
+      "title": "Seating (Public)",
+      "desc": "Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required.",
+      "endpoints": [
+        { "name": "seatmap", "method": "GET", "path": "/api/v1/public/events/:eventId/seatmap", "desc": "Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section." },
+        { "name": "seats", "method": "GET", "path": "/api/v1/public/events/:eventId/seats", "desc": "Live seat availability snapshot { sold, blocked, held } any seat id not listed is available." },
+        { "name": "live", "method": "GET", "path": "/api/v1/public/events/:eventId/seats/live", "kind": "sse", "desc": "Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events)." },
+        { "name": "hold", "method": "POST", "path": "/api/v1/public/events/:eventId/seats/hold", "desc": "Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }." },
+        { "name": "releaseHold", "method": "DELETE", "path": "/api/v1/public/events/:eventId/seats/hold", "desc": "Release a holder's seat holds (omit seatIds in the body to release all of them)." }
       ]
     },
     {
@@ -49,6 +62,12 @@
         { "name": "createSection", "method": "POST", "path": "/api/v1/organizer/events/:id/sections", "desc": "Add a seating section." },
         { "name": "updateSection", "method": "PUT", "path": "/api/v1/organizer/events/:id/sections/:sectionId", "desc": "Update a seating section." },
         { "name": "deleteSection", "method": "DELETE", "path": "/api/v1/organizer/events/:id/sections/:sectionId", "desc": "Delete a seating section." },
+        { "name": "venues", "method": "GET", "path": "/api/v1/organizer/venues", "desc": "Browse published venue seat maps you can attach to an event (interactive seating)." },
+        { "name": "getEventSeating", "method": "GET", "path": "/api/v1/organizer/events/:id/seating", "desc": "Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats." },
+        { "name": "attachSeating", "method": "PUT", "path": "/api/v1/organizer/events/:id/seating", "desc": "Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds)." },
+        { "name": "detachSeating", "method": "DELETE", "path": "/api/v1/organizer/events/:id/seating", "desc": "Remove interactive seating from the event (only before any seat sells)." },
+        { "name": "setSeatingPricing", "method": "PUT", "path": "/api/v1/organizer/events/:id/seating/pricing", "desc": "Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}])." },
+        { "name": "setSeatingBlocks", "method": "POST", "path": "/api/v1/organizer/events/:id/seating/blocks", "desc": "Block or unblock seats for the event (body: block:[seatId], unblock:[seatId])." },
         { "name": "promoCodes", "method": "GET", "path": "/api/v1/organizer/promo-codes", "desc": "List promo codes (optionally filtered by event)." },
         { "name": "createPromoCode", "method": "POST", "path": "/api/v1/organizer/promo-codes", "desc": "Create a promo code." },
         { "name": "updatePromoCode", "method": "PUT", "path": "/api/v1/organizer/promo-codes/:id", "desc": "Update a promo code." },
@@ -143,6 +162,21 @@
         { "name": "createReport", "method": "POST", "path": "/api/v1/users/me/reports", "desc": "File a report against an event or organizer." },
         { "name": "messages", "method": "GET", "path": "/api/v1/users/me/messages", "desc": "The buyer's message threads with organizers." },
         { "name": "sendTicketMessage", "method": "POST", "path": "/api/v1/users/me/tickets/:ticketId/message", "desc": "Message the organizer about a ticket (rate-limited)." }
+      ]
+    },
+    {
+      "ns": "courses",
+      "title": "Courses (Learner)",
+      "desc": "The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required.",
+      "endpoints": [
+        { "name": "mine", "method": "GET", "path": "/api/v1/courses/mine", "desc": "List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content." },
+        { "name": "get", "method": "GET", "path": "/api/v1/courses/:eventId", "desc": "Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block." },
+        { "name": "completeLesson", "method": "POST", "path": "/api/v1/courses/:eventId/lessons/:index/complete", "desc": "Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate." },
+        { "name": "uncompleteLesson", "method": "DELETE", "path": "/api/v1/courses/:eventId/lessons/:index/complete", "desc": "Reverse a syllabus lesson completion (does not revoke an already-issued certificate)." },
+        { "name": "complete", "method": "POST", "path": "/api/v1/courses/:eventId/complete", "desc": "Complete a unified course (unified courses only): marks the single learning unit complete." },
+        { "name": "exam", "method": "GET", "path": "/api/v1/courses/:eventId/exam", "desc": "Get the course exam to take. Correct answers and explanations are stripped server-side." },
+        { "name": "submitExam", "method": "POST", "path": "/api/v1/courses/:eventId/exam/submit", "desc": "Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance." },
+        { "name": "certificate", "method": "GET", "path": "/api/v1/courses/:eventId/certificate", "kind": "binary", "desc": "Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned)." }
       ]
     },
     {

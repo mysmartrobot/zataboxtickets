@@ -58,12 +58,17 @@ module Zatabox
         @client = client
       end
 
-      # List and search published public events (cursor-paginated).
+      # List and search published public events (cursor-paginated). Filters: q, category, city, and the read-only facets productType (event|reservation|digital) and course=true (courses within digital).
       def list(query = nil, opts = {})
         @client.request("GET", "/api/v1/events", query: query, **opts)
       end
 
-      # Event detail by slug (organizer info, schedule, active ticket types).
+      # Full-text + faceted event search. Same q/category/city/productType/course facets as events.list, plus date_from/date_to; each result carries category + read-only productType.
+      def search(query = nil, opts = {})
+        @client.request("GET", "/api/v1/search", query: query, **opts)
+      end
+
+      # Event detail by slug (organizer info, schedule, active ticket types; carries category + read-only productType).
       def get(slug, query = nil, opts = {})
         @client.request("GET", "/api/v1/events/" + enc(slug), query: query, **opts)
       end
@@ -76,6 +81,44 @@ module Zatabox
       # Issue tickets you sold elsewhere (developer-handled payment; 3% wallet fee on paid tickets).
       def issue(event_id, body = nil, opts = {})
         @client.request("POST", "/api/v1/events/" + enc(event_id) + "/issue", body: body, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
+    # Seating (Public) Interactive venue seating: the buyer-facing seat map, live availability and temporary seat holds. Only events an organizer has attached a venue map to expose these (others 404 NO_SEATING). Buy seats by passing venueSeatIds on orders.create. No auth required.
+    class Seating
+      def initialize(client)
+        @client = client
+      end
+
+      # Get the seat map: sections, seats with x/y coordinates, stage/label elements, and the ticket type + price per section.
+      def seatmap(event_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/public/events/" + enc(event_id) + "/seatmap", query: query, **opts)
+      end
+
+      # Live seat availability snapshot { sold, blocked, held } any seat id not listed is available.
+      def seats(event_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/public/events/" + enc(event_id) + "/seats", query: query, **opts)
+      end
+
+      # Server-Sent Events stream of live seat availability (a snapshot on connect, then seat_update events). (SSE returns the stream URL)
+      def live_url(event_id, query = nil)
+        @client.url("/api/v1/public/events/" + enc(event_id) + "/seats/live", query)
+      end
+
+      # Hold (replace) the seats a buyer is selecting for an opaque holder token; returns { held, failed }.
+      def hold(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/public/events/" + enc(event_id) + "/seats/hold", body: body, **opts)
+      end
+
+      # Release a holder's seat holds (omit seatIds in the body to release all of them).
+      def release_hold(event_id, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/public/events/" + enc(event_id) + "/seats/hold", body: body, **opts)
       end
 
       private
@@ -164,6 +207,36 @@ module Zatabox
       # Delete a seating section.
       def delete_section(id, section_id, body = nil, opts = {})
         @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/sections/" + enc(section_id), body: body, **opts)
+      end
+
+      # Browse published venue seat maps you can attach to an event (interactive seating).
+      def venues(query = nil, opts = {})
+        @client.request("GET", "/api/v1/organizer/venues", query: query, **opts)
+      end
+
+      # Get an event's interactive-seating setup: attached map, section→ticket-type pricing, and blocked/sold seats.
+      def get_event_seating(id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/organizer/events/" + enc(id) + "/seating", query: query, **opts)
+      end
+
+      # Attach a published venue map to the event (body: venueMapId, optional mode/holdTtlSeconds).
+      def attach_seating(id, body = nil, opts = {})
+        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/seating", body: body, **opts)
+      end
+
+      # Remove interactive seating from the event (only before any seat sells).
+      def detach_seating(id, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/organizer/events/" + enc(id) + "/seating", body: body, **opts)
+      end
+
+      # Map each venue section to one of the event's ticket types (body: mappings:[{venueSectionId, ticketTypeId}]).
+      def set_seating_pricing(id, body = nil, opts = {})
+        @client.request("PUT", "/api/v1/organizer/events/" + enc(id) + "/seating/pricing", body: body, **opts)
+      end
+
+      # Block or unblock seats for the event (body: block:[seatId], unblock:[seatId]).
+      def set_seating_blocks(id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/organizer/events/" + enc(id) + "/seating/blocks", body: body, **opts)
       end
 
       # List promo codes (optionally filtered by event).
@@ -467,6 +540,59 @@ module Zatabox
       end
     end
 
+    # Courses (Learner) The authenticated buyer's online-course learner surface: enrolled courses, lesson/course completion, the exam, and the completion certificate. Course content (paid lesson media, writeups, pins) is delivered only to enrolled ticket holders; media links returned here are short-lived signed /media URLs. Buyer auth (a ticket for the course) required.
+    class Courses
+      def initialize(client)
+        @client = client
+      end
+
+      # List the buyer's enrolled courses, each with course meta and a progress summary (started courses first). No lesson content.
+      def mine(query = nil, opts = {})
+        @client.request("GET", "/api/v1/courses/mine", query: query, **opts)
+      end
+
+      # Get one course's full learner payload: meta + progress + lessons (syllabus, with completed flags and signed media) or a unified content block.
+      def get(event_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/courses/" + enc(event_id), query: query, **opts)
+      end
+
+      # Mark a syllabus lesson complete (idempotent, zero-based index). Completing the last requirement finishes the course and may issue a certificate.
+      def complete_lesson(event_id, index, body = nil, opts = {})
+        @client.request("POST", "/api/v1/courses/" + enc(event_id) + "/lessons/" + enc(index) + "/complete", body: body, **opts)
+      end
+
+      # Reverse a syllabus lesson completion (does not revoke an already-issued certificate).
+      def uncomplete_lesson(event_id, index, body = nil, opts = {})
+        @client.request("DELETE", "/api/v1/courses/" + enc(event_id) + "/lessons/" + enc(index) + "/complete", body: body, **opts)
+      end
+
+      # Complete a unified course (unified courses only): marks the single learning unit complete.
+      def complete(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/courses/" + enc(event_id) + "/complete", body: body, **opts)
+      end
+
+      # Get the course exam to take. Correct answers and explanations are stripped server-side.
+      def exam(event_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/courses/" + enc(event_id) + "/exam", query: query, **opts)
+      end
+
+      # Submit the exam (body: answers:[{questionId, selectedIndex}]) for server-side grading; a pass drives completion + certificate issuance.
+      def submit_exam(event_id, body = nil, opts = {})
+        @client.request("POST", "/api/v1/courses/" + enc(event_id) + "/exam/submit", body: body, **opts)
+      end
+
+      # Download the issued completion certificate as a PDF (404 CERTIFICATE_NOT_ISSUED until earned).
+      def certificate(event_id, query = nil, opts = {})
+        @client.request("GET", "/api/v1/courses/" + enc(event_id) + "/certificate", query: query, raw: true, **opts)
+      end
+
+      private
+
+      def enc(value)
+        Zatabox.encode(value)
+      end
+    end
+
     # API keys Manage your organization's own API keys (organizer owner/admin auth).
     class Integrations
       def initialize(client)
@@ -567,6 +693,7 @@ module Zatabox
     REGISTRY = {
       auth: Auth,
       events: Events,
+      seating: Seating,
       organizer: Organizer,
       event_customization: EventCustomization,
       tickets: Tickets,
@@ -576,6 +703,7 @@ module Zatabox
       community: Community,
       growth: Growth,
       users: Users,
+      courses: Courses,
       integrations: Integrations,
       webhooks: Webhooks,
     }.freeze
